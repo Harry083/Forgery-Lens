@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Forgery Lens</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/">
+      <span class="brand-mark">FL</span>
+      <span class="brand-text">Forgery Lens</span>
+    </a>
+    <nav class="primary-nav">
+      <ul>
+        <li><a href="https://harrylsmallwood.com/forgery-lens" target="_blank" rel="noopener">Guide</a></li>
+        <li><a class="nav-cta" href="https://github.com/Harry083/Forgery-Lens" target="_blank" rel="noopener">GitHub ↗</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <p class="hero-eyebrow">TOOL‑008 · running locally, your image never leaves this machine</p>
+    <h1>Forgery Lens</h1>
+    <p class="lede">Check a photo for signs of editing and of AI generation. Error level analysis, clone detection, JPEG ghosts, resampling, camera-pattern and noise checks, watermarks and provenance, with every view and the file's metadata side by side.</p>
+  </section>
+
+  <section class="panel drop-panel" id="fl-drop">
+    <div class="panel-title">01 · Image</div>
+    <h2>The image <span class="hint">photo or screenshot to examine</span></h2>
+    <div class="path-input-row">
+      <input type="text" id="fl-path" class="path-input" placeholder="C:\path\to\image.jpg" aria-label="Image path" spellcheck="false" />
+      <button class="btn browse-btn" type="button" data-browse="file">Browse…</button>
+      <button class="btn btn-primary run-btn" type="button" id="fl-run"><span class="btn-icon" aria-hidden="true">▶</span>Analyse</button>
+    </div>
+    <div class="drop-zone">
+      <span class="drop-hint">…or drop an image here, or paste one. JPEG, PNG, WebP, TIFF or BMP.</span>
+    </div>
+    <div class="file-status" id="fl-status" role="status" aria-live="polite"></div>
+    <div class="recent" id="fl-recent" hidden></div>
+    <details class="raw-details options">
+      <summary>Options</summary>
+      <div class="controls-row">
+        <label class="model-select-label">
+          ELA resave quality
+          <input type="number" id="opt-ela-quality" class="path-input" min="30" max="100" value="90" />
+        </label>
+        <label class="model-select-label">
+          Clone search size
+          <select id="opt-clone-size">
+            <option value="1024">1024 px (fastest)</option>
+            <option value="1536" selected>1536 px</option>
+            <option value="2048">2048 px (slower)</option>
+            <option value="4096">4096 px (slowest, smallest clones)</option>
+          </select>
+        </label>
+        <label class="model-select-label">
+          Clone sensitivity
+          <select id="opt-clone-sens">
+            <option value="strict">Strict</option>
+            <option value="normal" selected>Normal</option>
+            <option value="sensitive">Sensitive</option>
+          </select>
+        </label>
+      </div>
+      <h3>Techniques to run</h3>
+      <div class="checks" id="opt-techniques"></div>
+    </details>
+  </section>
+
+  <section class="panel progress-section" id="fl-progress" hidden>
+    <div class="progress-bar-track">
+      <div id="fl-progress-bar" class="progress-bar-fill"></div>
+    </div>
+    <div class="progress-label" id="fl-progress-text">Starting…</div>
+  </section>
+
+  <div id="fl-workspace" hidden>
+    <section class="panel results-section" id="fl-results-anchor">
+      <div class="results-header">
+        <h2>Summary</h2>
+        <div class="report-actions">
+          <a id="fl-report-html" class="btn btn-primary report-btn" download><span class="btn-icon" aria-hidden="true">↓</span>HTML report</a>
+          <a id="fl-report-json" class="btn report-btn" download>Download JSON</a>
+        </div>
+      </div>
+      <div class="score-cards" id="fl-summary"></div>
+      <div class="metadata-panel" id="fl-fileinfo"></div>
+    </section>
+
+    <section class="panel">
+      <div class="results-header">
+        <h2>Findings</h2>
+      </div>
+      <div id="fl-findings"></div>
+    </section>
+
+    <section class="panel viewer" id="fl-viewer">
+      <div class="results-header">
+        <h2>Views</h2>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Technique" id="fl-tabs"></div>
+      <p class="guide" id="fl-guide"></p>
+      <div class="controls-row tech-controls" id="fl-tech-controls"></div>
+      <div class="chips" id="fl-chips" role="group" aria-label="View"></div>
+
+      <div class="stage" id="fl-stage" data-zoom="fit">
+        <div class="stack" id="fl-stack">
+          <img id="fl-orig" alt="Original image" hidden />
+          <img id="fl-view" alt="" />
+        </div>
+      </div>
+      <div class="progress-label" id="fl-caption"></div>
+
+      <div class="view-actions">
+        <button class="btn" type="button" id="fl-hold">Hold to see original</button>
+        <label class="blend">Overlay on original
+          <input type="range" id="fl-blend" min="0" max="90" step="5" value="0" />
+          <output id="fl-blend-val">0</output>%
+        </label>
+        <button class="btn" type="button" id="fl-zoom">Actual pixels</button>
+        <a class="btn" id="fl-save-view" download>Save this view (PNG)</a>
+      </div>
+      <details class="raw-details">
+        <summary>Measurements and settings</summary>
+        <div class="metadata-panel" id="fl-metrics"></div>
+      </details>
+    </section>
+
+    <section class="panel metadata-section">
+      <div class="results-header">
+        <h2>Metadata</h2>
+      </div>
+      <div class="metadata-panel" id="fl-meta"></div>
+    </section>
+
+    <section class="panel" id="fl-report-anchor">
+      <div class="results-header">
+        <h2>Report</h2>
+        <div class="report-actions">
+          <button class="btn btn-primary report-btn" id="fl-copy" type="button">Copy to clipboard</button>
+        </div>
+      </div>
+      <textarea id="fl-report" class="report-text" rows="12" readonly></textarea>
+      <div class="file-status" id="fl-report-status" role="status"></div>
+    </section>
+  </div>
+
+  <p class="disclaimer">Forgery Lens gives indicators to guide an examination, not a verdict. Every technique produces false positives, from fine texture, repeating patterns, heavy recompression and out-of-focus areas, and every technique can miss careful work. Images that have been resized, screenshotted or passed through social media keep far fewer traces. Confirm each finding by examining the image yourself, and record your method.</p>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>Forgery Lens · a <a href="https://harrylsmallwood.com/tools" target="_blank" rel="noopener">Harry Smallwood tool</a></span>
+    <span class="mono">127.0.0.1:8765</span>
+  </div>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
