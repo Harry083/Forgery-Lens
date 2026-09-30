@@ -1,4 +1,4 @@
-"""Reports: a single self-contained HTML file, JSON, and full-resolution maps."""
+"""Reports: a single self-contained HTML file, a PDF printed from it, JSON, and full-resolution maps."""
 
 from __future__ import annotations
 
@@ -6,7 +6,11 @@ import base64
 import html
 import io
 import json
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
 from PIL import Image
@@ -78,7 +82,9 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--dim);font-size:.88rem
 .tlabel{font:600 .72rem var(--mono);color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
 #zoom{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:9;cursor:zoom-out}
 #zoom img{max-width:96vw;max-height:94vh}
-@media print{body{background:#fff}.card{break-inside:avoid;border-color:#ccc}button.cmp{display:none}figure{break-inside:avoid}}
+@media print{body{background:#fff}.card{break-inside:avoid;border-color:#ccc}section.card{break-inside:auto}
+h2,h3,.guide{break-after:avoid}button.cmp{display:none}.views{grid-template-columns:1fr 1fr}
+figure{break-inside:avoid}figure img{max-height:120mm;object-fit:contain;cursor:auto}}
 @media (max-width:560px){.views{grid-template-columns:1fr}th{width:40%}}
 """
 
@@ -193,6 +199,72 @@ def render_html(an: Analysis, extra_head: str = "", banner: str = "") -> str:
     parts.append(f"<p class=sub>Forgery Lens v{_e(an.version)}. The original file was only read, never modified.</p>")
     parts.append(f"<input type=hidden id=orig value='{orig_uri}'><div id=zoom><img alt=''></div></div><script>{JS}</script></body></html>")
     return "".join(parts)
+
+
+class PdfError(RuntimeError):
+    """The PDF couldn't be made; the message is shown to the user as-is."""
+
+
+def find_browser() -> str | None:
+    """A Chromium-based browser that can print to PDF headless: Edge (always on Windows 10/11) or Chrome."""
+    names = ["msedge", "microsoft-edge", "microsoft-edge-stable", "google-chrome", "google-chrome-stable",
+             "chromium", "chromium-browser", "chrome"]
+    for name in names:
+        found = shutil.which(name)
+        if found:
+            return found
+    candidates = []
+    for root in filter(None, (os.environ.get("PROGRAMFILES(X86)"), os.environ.get("PROGRAMFILES"),
+                              os.environ.get("LOCALAPPDATA"))):
+        candidates += [Path(root, "Microsoft", "Edge", "Application", "msedge.exe"),
+                       Path(root, "Google", "Chrome", "Application", "chrome.exe")]
+    candidates += [Path("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
+                   Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+                   Path("/Applications/Chromium.app/Contents/MacOS/Chromium")]
+    return next((str(p) for p in candidates if p.is_file()), None)
+
+
+def render_print_html(an: Analysis) -> str:
+    """The HTML report as it should print: every "Measurements and settings" section open, every image loaded up front."""
+    return render_html(an).replace("<details>", "<details open>").replace(" loading=lazy>", ">")
+
+
+def render_pdf(an: Analysis, out: Path) -> None:
+    """Print the HTML report to a PDF with a headless Edge/Chrome, the same as Print → Save as PDF.
+
+    The desktop app on Windows prints with its own WebView2 instead (backend/api.py); this is the fallback."""
+    browser = find_browser()
+    if not browser:
+        raise PdfError("Saving as PDF needs Microsoft Edge or Google Chrome installed. "
+                       "Save the HTML report instead and print it to PDF from your browser.")
+    page = render_print_html(an)
+    with tempfile.TemporaryDirectory(prefix="forgery-lens-pdf-", ignore_cleanup_errors=True) as tmp:
+        src, pdf = Path(tmp, "report.html"), Path(tmp, "report.pdf")
+        src.write_text(page, encoding="utf-8")
+        detail = ""
+        # The new headless mode first; older browsers only know the old one.
+        for mode in ("--headless=new", "--headless"):
+            cmd = [browser, mode, "--disable-gpu", "--no-first-run", "--no-default-browser-check",
+                   "--disable-extensions", f"--user-data-dir={Path(tmp, 'profile-' + mode[-3:])}",
+                   "--no-pdf-header-footer", "--print-to-pdf-no-header", f"--print-to-pdf={pdf}", src.as_uri()]
+            try:
+                # stdin too: a windowed app has no console handles to pass on
+                r = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True, timeout=180,
+                                   creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            except subprocess.TimeoutExpired as e:
+                raise PdfError("Making the PDF took too long. Save the HTML report and print it instead.") from e
+            except OSError as e:
+                raise PdfError(f"Couldn't start {Path(browser).name} to make the PDF ({e}).") from e
+            if pdf.is_file() and pdf.stat().st_size:
+                break
+            errors = [ln for ln in r.stderr.decode(errors="replace").splitlines() if "ERROR" in ln or "FATAL" in ln]
+            detail = f"{Path(browser).name} exited with code {r.returncode}" + (f": {errors[-1][-200:]}" if errors else "")
+        else:
+            raise PdfError(f"The PDF couldn't be made ({detail}). Save the HTML report and print it to PDF instead.")
+        try:
+            shutil.copyfile(pdf, out)
+        except OSError as e:
+            raise PdfError(f"The PDF was made but couldn't be saved to {out}: {e.strerror or e}") from e
 
 
 def write(an: Analysis, out_dir: Path, html_report: bool = True, json_report: bool = True, maps: bool = True) -> dict:

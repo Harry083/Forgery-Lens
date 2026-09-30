@@ -4,14 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Forgery Lens</title>
-<link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
-<link rel="stylesheet" href="/static/app.css" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
 <header class="site-header">
   <div class="wrap">
-    <a class="brand" href="/">
+    <a class="brand" href="#">
       <span class="brand-mark">FL</span>
       <span class="brand-text">Forgery Lens</span>
     </a>
@@ -26,7 +26,7 @@
 
 <main class="wrap">
   <section class="hero">
-    <p class="hero-eyebrow">TOOL‑008 · running locally, your image never leaves this machine</p>
+    <p class="hero-eyebrow">TOOL‑008 · desktop app, your image never leaves this machine</p>
     <h1>Forgery Lens</h1>
     <p class="lede">Check a photo for signs of editing and of AI generation. Error level analysis, clone detection, JPEG ghosts, resampling, camera-pattern and noise checks, watermarks and provenance, with every view and the file's metadata side by side.</p>
   </section>
@@ -40,16 +40,23 @@
       <button class="btn btn-primary run-btn" type="button" id="fl-run"><span class="btn-icon" aria-hidden="true">▶</span>Analyse</button>
     </div>
     <div class="drop-zone">
-      <span class="drop-hint">…or drop an image here, or paste one. JPEG, PNG, WebP, TIFF or BMP.</span>
+      <span class="drop-hint">…or drop an image here, or paste one, then press Analyse. JPEG, PNG, WebP, TIFF or BMP.</span>
     </div>
     <div class="file-status" id="fl-status" role="status" aria-live="polite"></div>
     <div class="recent" id="fl-recent" hidden></div>
-    <details class="raw-details options">
+    <details class="raw-details options" open>
       <summary>Options</summary>
       <div class="controls-row">
         <label class="model-select-label">
           ELA resave quality
-          <input type="number" id="opt-ela-quality" class="path-input" min="30" max="100" value="90" />
+          <select id="opt-ela-quality">
+            <option value="70">70</option>
+            <option value="75">75</option>
+            <option value="80">80</option>
+            <option value="85">85</option>
+            <option value="90" selected>90 (default)</option>
+            <option value="95">95</option>
+          </select>
         </label>
         <label class="model-select-label">
           Clone search size
@@ -86,8 +93,9 @@
       <div class="results-header">
         <h2>Summary</h2>
         <div class="report-actions">
-          <a id="fl-report-html" class="btn btn-primary report-btn" download><span class="btn-icon" aria-hidden="true">↓</span>HTML report</a>
-          <a id="fl-report-json" class="btn report-btn" download>Download JSON</a>
+          <button id="fl-report-html" class="btn btn-primary report-btn" type="button"><span class="btn-icon" aria-hidden="true">↓</span>Save HTML report</button>
+          <button id="fl-report-pdf" class="btn report-btn" type="button">Save PDF</button>
+          <button id="fl-report-json" class="btn report-btn" type="button">Save JSON</button>
         </div>
       </div>
       <div class="score-cards" id="fl-summary"></div>
@@ -125,7 +133,7 @@
           <output id="fl-blend-val">0</output>%
         </label>
         <button class="btn" type="button" id="fl-zoom">Actual pixels</button>
-        <a class="btn" id="fl-save-view" download>Save this view (PNG)</a>
+        <button class="btn" type="button" id="fl-save-view">Save this view (PNG)</button>
       </div>
       <details class="raw-details">
         <summary>Measurements and settings</summary>
@@ -158,10 +166,10 @@
 <footer class="site-footer">
   <div class="wrap">
     <span>Forgery Lens · a <a href="https://harrylsmallwood.com/tools" target="_blank" rel="noopener">Harry Smallwood tool</a></span>
-    <span class="mono">127.0.0.1:8765</span>
+    <span class="mono">desktop · offline</span>
   </div>
 </footer>
 
-<script src="/static/app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

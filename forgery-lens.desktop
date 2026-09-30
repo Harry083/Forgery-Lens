@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Forgery Lens
+Comment=Check an image for signs of editing and AI generation
+# Edit the paths to where you unpacked the build.
+Exec=/opt/ForgeryLens/ForgeryLens
+Icon=/opt/ForgeryLens/forgerylens.png
+Terminal=false
+Categories=Graphics;Utility;

@@ -59,5 +59,5 @@ def base():
 
 @pytest.fixture
 def settings():
-    from forgery_lens.settings import Settings
+    from backend.settings import Settings
     return Settings()

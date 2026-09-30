@@ -1,18 +1,25 @@
 # Forgery Lens
 
-A local web app that checks an image for signs of editing and of AI generation. It runs thirteen forensic
+A desktop application that checks an image for signs of editing and of AI generation. It runs thirteen forensic
 techniques, among them error level analysis, principal component analysis, luminance gradients, clone detection,
 JPEG ghosts, resampling and camera-pattern analysis, plus provenance, watermark and metadata checks. Results come as
 findings, full-resolution views and an HTML/JSON report.
 
-It is a browser interface backed by a Python engine, and both run on your own computer. Images are never uploaded
-anywhere.
+It opens in its own native window, using the operating system's web engine through
+[pywebview](https://pywebview.flowrl.com/) (Edge WebView2 on Windows, WebKit on macOS, WebKitGTK or Qt on
+Linux). **No web server runs and no network port is opened**: the window's JavaScript calls the Python engine
+directly. Images are never uploaded anywhere.
 
 ![The Forgery Lens viewer, showing a detected clone](docs/app-viewer.png)
 
 ## Requirements
 
 - Python 3.10+
+- A system web engine:
+  - Windows 10/11: Edge WebView2, which is already installed.
+  - macOS: nothing extra.
+  - Linux: GTK and WebKit2GTK (e.g. `sudo apt install python3-gi gir1.2-webkit2-4.1`), or
+    `pip install "pywebview[qt]"`.
 
 ## Setup
 
@@ -23,24 +30,41 @@ python -m venv .venv
 
 On macOS/Linux use `.venv/bin/python` in place of `.venv\Scripts\python.exe`.
 
-## Run
+## Run from source
 
 ```bash
-.venv\Scripts\python.exe run.py
+.venv\Scripts\python.exe app.py
 ```
 
-Your browser opens at http://127.0.0.1:8765. Keep the console window open while you use it; press Ctrl+C to stop.
+Pass `--debug` to enable the web inspector.
+
+## Build a standalone app
 
 ```bash
-python run.py --port 8800        # a different port
-python run.py --no-browser       # don't open a browser window
+python -m pip install pyinstaller
+python -m PyInstaller --clean ForgeryLens.spec
 ```
+
+This builds a single file, `dist/ForgeryLens.exe` (`dist/ForgeryLens` on Linux/macOS), with the Forgery Lens
+icon. It runs on another machine without Python installed. Each launch unpacks the app to a temp folder first,
+so it takes a few seconds to open.
+
+- **Windows:** run `ForgeryLens.exe`. Pin it to the Start menu or taskbar like any other program.
+- **macOS:** run `dist/ForgeryLens`.
+- **Linux:** copy `dist/ForgeryLens` and `forgerylens.png` to `/opt/ForgeryLens/`, then install
+  `forgery-lens.desktop` into `~/.local/share/applications/`.
+
+The icon lives in `forgerylens.ico` (every Windows size, 16–256 px) and `forgerylens.png` (1024 px). To use a
+different one, replace those two files and rebuild.
+
+PyInstaller builds for the OS it runs on, so build the Windows `.exe` on Windows.
 
 ## Using the app
 
-1. **Open an image.** Click **Browse…** to pick it in your system's own file dialog, type or paste its path and
-   press **Analyse**, or drop the image on the page or paste it. Under **Options** you can set the ELA quality
-   and clone-search settings, and turn techniques off. A progress bar follows the analysis.
+1. **Open an image.** Click **Browse…** to pick it in your system's own file dialog, type or paste its path, or
+   drop the image on the window or paste it. Nothing runs until you press **Analyse**, so you can check the
+   **Options** first (open by default): the ELA quality, the clone-search settings, and which techniques to run.
+   A progress bar follows the analysis.
 2. **Summary and Findings.** These are grouped into editing and manipulation, AI-generated imagery, and metadata
    and provenance. Each finding is marked *worth a closer look* or *minor*, and routine notes are folded away.
    **Show me** jumps to the view that found it.
@@ -48,28 +72,29 @@ python run.py --no-browser       # don't open a browser window
    switch between each technique's views, e.g. ELA at two qualities, or PC1, PC2, PC3 and the density plot.
    - **Overlay on original** blends the result over the photo, and **Hold to see original** flicks back to it.
    - **Actual pixels** zooms to full resolution.
-   - **Save this view** downloads a full-resolution PNG.
+   - **Save this view** saves a full-resolution PNG where you choose.
    - ELA's sliders and clone detection's settings re-run that technique in the engine.
    - **Measurements and settings** shows the numbers behind each view.
 4. **Metadata:** file structure, quantisation tables, EXIF (with GPS), XMP, text chunks and C2PA Content
    Credentials.
-5. **Report.** Copy a plain-text summary, or download the full HTML report (it opens offline and prints to PDF)
-   or the JSON.
+5. **Report.** Copy a plain-text summary, or save the full report as HTML (it opens offline), PDF or JSON.
+   On Windows the PDF is printed from the HTML report by the app's own web engine (WebView2), on A4 or US Letter
+   to match your region. On macOS and Linux it is printed by Microsoft Edge or Google Chrome running in the
+   background, so one of them must be installed there.
 
 ![Summary and findings](docs/app-findings.png)
 
-The app listens only on this computer (127.0.0.1). It also turns away requests addressed to any other host name,
-and requests that don't come from its own page, so other websites you visit can't use it. Recent analyses stay in
-memory until you close it; nothing is written to disk except what you download.
+Recent analyses stay in memory until you close the app. The views you look at are written as PNGs to a
+temporary folder, which is deleted when the app closes; nothing else is written to disk except what you save.
 
 ## Batch work from the command line
 
-The same engine also runs without the browser, for folders of images:
+The same engine also runs without the window, for folders of images. Run it from source:
 
 ```bash
-python run.py analyse photo.jpg --open            # one image, open its report
-python run.py analyse evidence/ -r -o reports/    # a whole folder (adds reports/summary.csv)
-python run.py techniques                          # list the techniques
+python app.py analyse photo.jpg --open            # one image, open its report
+python app.py analyse evidence/ -r -o reports/    # a whole folder (adds reports/summary.csv)
+python app.py techniques                          # list the techniques
 ```
 
 Each image gets a folder with `report.html`, `report.json` and `maps/`, which holds every view as a
@@ -141,22 +166,25 @@ It flags editing software, dimension and thumbnail mismatches, stripped EXIF, an
 
 ```
 forgery-lens/
-├── forgery_lens/
-│   ├── app.py          local web app: HTTP server and JSON API
-│   ├── cli.py          command line (serve, analyse, techniques)
-│   ├── analyse.py      runs every technique over one image
-│   ├── exhibit.py      loading, hashing (images are decoded exactly as stored)
-│   ├── metadata.py     JPEG/PNG/WebP/EXIF/XMP/C2PA parsing
-│   ├── report.py       HTML/JSON reports and full-resolution maps
-│   ├── techniques/     one module per technique
-│   └── web/            the browser interface (HTML, CSS, JavaScript)
-├── tests/              pytest suite (techniques, metadata, app API); builds its own test images
-├── docs/               screenshots
-├── run.py              entry point (web app on port 8765, or the CLI with a command)
+├── backend/
+│   ├── api.py            the methods the window calls (window.pywebview.api.*), and the analysis jobs
+│   ├── cli.py            command line (analyse, techniques)
+│   ├── analyse.py        runs every technique over one image
+│   ├── exhibit.py        loading, hashing (images are decoded exactly as stored)
+│   ├── metadata.py       JPEG/PNG/WebP/EXIF/XMP/C2PA parsing
+│   ├── report.py         HTML/JSON reports and full-resolution maps
+│   └── techniques/       one module per technique
+├── frontend/             vanilla HTML/CSS/JS UI; styles.css + fonts/ are the shared tool style kit
+├── tests/                pytest suite (techniques, metadata, app API); builds its own test images
+├── docs/                 screenshots
+├── app.py                entry point: opens the native window (no server, no port), or the CLI with a command
+├── ForgeryLens.spec      PyInstaller one-file build
+├── forgerylens.ico/.png  the app icon
+├── forgery-lens.desktop  Linux menu launcher
 └── requirements.txt
 ```
 
-Run the tests with `pip install pytest` then `python -m pytest`.
+Run the tests with `pip install pytest` then `python -m pytest tests`.
 
 ## Licence
 
