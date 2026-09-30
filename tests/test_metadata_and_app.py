@@ -1,4 +1,4 @@
-"""Metadata parsing, provenance findings, report, CLI and server."""
+"""Metadata parsing, provenance findings, report and CLI."""
 
 from __future__ import annotations
 
@@ -9,11 +9,11 @@ import pytest
 from PIL import Image, PngImagePlugin
 
 from conftest import jpeg_bytes, png_bytes
-from forgery_lens import metadata
-from forgery_lens.analyse import analyse
-from forgery_lens.exhibit import ExhibitError, load_bytes
-from forgery_lens.result import AI, NOTABLE
-from forgery_lens.techniques import pca, provenance
+from backend import metadata
+from backend.analyse import analyse
+from backend.exhibit import ExhibitError, load_bytes
+from backend.result import AI, NOTABLE
+from backend.techniques import pca, provenance
 
 
 def titles(res, category=None):
@@ -84,9 +84,9 @@ def test_rejects_non_images():
 
 
 def test_full_analysis_report_and_cli(tmp_path, base):
-    from forgery_lens.cli import main
-    from forgery_lens.report import render_html, write
-    from forgery_lens.settings import Settings
+    from backend.cli import main
+    from backend.report import render_html, write
+    from backend.settings import Settings
 
     img = base.copy()
     img[300:396, 330:426] = base[60:156, 40:136]
@@ -104,13 +104,3 @@ def test_full_analysis_report_and_cli(tmp_path, base):
     src.write_bytes(data)
     assert main(["analyse", str(src), "-o", str(tmp_path / "cli"), "-q", "--skip", "watermark", "--no-maps"]) == 0
     assert (tmp_path / "cli" / "in" / "report.html").exists()
-
-
-def test_server_multipart_parsing():
-    from forgery_lens.app import parse_multipart as _parse_multipart
-
-    body = (b"--XX\r\nContent-Disposition: form-data; name=\"image\"; filename=\"a.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n"
-            b"\xff\xd8abc\r\n--XX\r\nContent-Disposition: form-data; name=\"options\"\r\n\r\n{}\r\n--XX--\r\n")
-    f = _parse_multipart("multipart/form-data; boundary=XX", body)
-    assert f["image"][0]["filename"] == "a.jpg" and f["image"][0]["data"] == b"\xff\xd8abc"
-    assert f["options"][0]["data"] == b"{}"

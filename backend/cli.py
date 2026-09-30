@@ -1,4 +1,4 @@
-"""Command line: python run.py [serve | analyse | techniques]."""
+"""Command line: python app.py [analyse | techniques]. With no command, app.py opens the desktop window."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def _settings(a):
         skip |= set(TECHNIQUES) - only
     unknown = skip - set(TECHNIQUES)
     if unknown:
-        raise SystemExit(f"unknown technique(s): {', '.join(sorted(unknown))}. See: python run.py techniques")
+        raise SystemExit(f"unknown technique(s): {', '.join(sorted(unknown))}. See: python app.py techniques")
     return Settings(ela_quality=a.ela_quality, clone_size=a.clone_size, clone_sensitivity=a.clone_sensitivity,
                     skip=skip)
 
@@ -105,15 +105,8 @@ def cmd_techniques(a) -> int:
     return 0
 
 
-def cmd_serve(a) -> int:
-    from .app import serve
-
-    serve(a.host, a.port, open_browser=not a.no_browser)
-    return 0
-
-
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="run.py", description="Image forgery and AI-generated imagery detection. Run with no command to open the browser interface.")
+    p = argparse.ArgumentParser(prog="app.py", description="Image forgery and AI-generated imagery detection. Run with no command to open the desktop app.")
     p.add_argument("--version", action="version", version=f"forgery-lens {__version__}")
     sub = p.add_subparsers(dest="cmd")
 
@@ -133,12 +126,6 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--only", help="comma-separated techniques to run (all others skipped)")
     an.set_defaults(func=cmd_analyse)
 
-    sv = sub.add_parser("serve", aliases=["app"], help="run the browser interface on this computer (the default)")
-    sv.add_argument("--host", default="127.0.0.1", help="address to listen on (default: this computer only)")
-    sv.add_argument("--port", type=int, default=8765)
-    sv.add_argument("--no-browser", action="store_true", help="don't open a browser window")
-    sv.set_defaults(func=cmd_serve)
-
     te = sub.add_parser("techniques", help="list the techniques")
     te.set_defaults(func=cmd_techniques)
     return p
@@ -146,12 +133,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
-    # With no command, start the browser interface: that's what a plain
-    # `python run.py` should do. A bare option (e.g. `python run.py
-    # --port 8800`) is for the app too.
-    if not argv or (argv[0].startswith("-") and argv[0] not in ("-h", "--help", "--version")):
-        argv = ["serve", *argv]
-    a = build_parser().parse_args(argv)
+    p = build_parser()
+    a = p.parse_args(argv)
+    if not getattr(a, "func", None):
+        p.print_help()
+        return 2
     try:
         return a.func(a)
     except KeyboardInterrupt:

@@ -544,7 +544,6 @@ h4 { font-size: 1rem; font-weight: 600; margin: 0 0 0.5em; }
 .options { margin-top: 1rem; }
 .options[open] summary { margin-bottom: 1rem; }
 .options .controls-row { margin-bottom: 1.4rem; }
-.options .path-input { font-family: var(--font-body); font-size: 0.9rem; }
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 0.2rem 1rem; }
 .check {
   display: flex;

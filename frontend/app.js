@@ -1,6 +1,5 @@
-// Forgery Lens: browser interface for the local Python engine.
-// Everything here talks only to the server that served this page
-// (127.0.0.1 by default). The analysis itself runs in Python.
+// Forgery Lens: the desktop window's interface. The analysis runs in Python;
+// the page calls it directly through pywebview's bridge, with no server or port.
 
 (function () {
   "use strict";
@@ -8,7 +7,7 @@
   var LEVEL_LABEL = { notable: "Worth a closer look", weak: "Minor", info: "Note" };
   var CATEGORY_LABEL = { manipulation: "Editing and manipulation", ai: "AI-generated imagery", provenance: "Metadata and provenance" };
 
-  var S = { config: null, job: null, tech: null, viewIdx: 0, poll: 0, holding: false };
+  var S = { config: null, job: null, tech: null, viewIdx: 0, poll: 0, holding: false, pending: null };
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -22,42 +21,48 @@
     if (state) el.setAttribute("data-state", state); else el.removeAttribute("data-state");
   }
 
-  // Every request carries the app header; the server refuses writes without it.
-  function api(method, url, body) {
-    var opts = { method: method, headers: { "X-Forgery-Lens": "1" } };
-    if (body instanceof FormData) opts.body = body;
-    else if (body !== undefined) { opts.body = JSON.stringify(body); opts.headers["Content-Type"] = "application/json"; }
-    return fetch(url, opts).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (data) {
-        if (!r.ok) throw new Error(data.error || ("The server returned " + r.status + "."));
-        return data;
-      });
-    }, function () { throw new Error("Can't reach Forgery Lens. Is it still running?"); });
+  // ---------- Backend calls ----------
+  // The page talks to Python directly through pywebview's bridge; there is no HTTP server or port.
+  var bridgeReady = new Promise(function (resolve) {
+    if (window.pywebview && window.pywebview.api) resolve();
+    else window.addEventListener("pywebviewready", resolve, { once: true });
+  });
+
+  function api(method) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return bridgeReady.then(function () {
+      return window.pywebview.api[method].apply(null, args);
+    }).then(function (res) {
+      if (!res || !res.ok) throw new Error((res && res.error) || method + " failed");
+      return res.data;
+    });
   }
 
   /* ---------------- start-up ---------------- */
 
   function init() {
-    api("GET", "/api/config").then(function (cfg) {
+    api("config").then(function (cfg) {
       S.config = cfg;
       $("opt-ela-quality").value = cfg.defaults.ela_quality;
       $("opt-techniques").innerHTML = cfg.techniques.map(function (t) {
         return '<label class="check"><input type="checkbox" value="' + esc(t.key) + '" checked><span>' + esc(t.title) + "</span></label>";
       }).join("");
       renderRecent(cfg.recent);
-      say("fl-status", "Nothing is uploaded anywhere. The image goes only to the Forgery Lens engine on this computer.");
+      say("fl-status", "Nothing is uploaded anywhere. The image is analysed on this computer.");
     }).catch(function (e) { say("fl-status", e.message, "error"); });
 
     var path = $("fl-path"), drop = $("fl-drop");
-    $("fl-run").addEventListener("click", function () { startPath(path.value); });
-    path.addEventListener("keydown", function (e) { if (e.key === "Enter") startPath(path.value); });
-    // Browse opens the operating system's own dialog, via the engine on this computer.
+    $("fl-run").addEventListener("click", analyse);
+    path.addEventListener("keydown", function (e) { if (e.key === "Enter") analyse(); });
+    // Typing over a dropped file's name means the typed path is wanted instead.
+    path.addEventListener("input", function () { S.pending = null; });
+    // Browse opens the operating system's own file dialog, attached to the app window.
     document.querySelectorAll(".browse-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var input = btn.closest(".path-input-row").querySelector(".path-input");
         btn.disabled = true;
-        api("POST", "/api/browse", { mode: btn.getAttribute("data-browse") || "file", start: input.value })
-          .then(function (r) { if (r.path) { input.value = r.path; startPath(r.path); } })
+        api("pick", input.value)
+          .then(function (r) { if (r.path) { input.value = r.path; S.pending = null; ready(r.path); } })
           .catch(function (e) { say("fl-status", e.message, "error"); })
           .then(function () { btn.disabled = false; });
       });
@@ -68,14 +73,18 @@
     ["dragleave", "drop"].forEach(function (ev) {
       drop.addEventListener(ev, function (e) { e.preventDefault(); drop.removeAttribute("data-over"); });
     });
-    drop.addEventListener("drop", function (e) { if (e.dataTransfer.files[0]) start(e.dataTransfer.files[0]); });
+    drop.addEventListener("drop", function (e) { if (e.dataTransfer.files[0]) hold(e.dataTransfer.files[0]); });
     document.addEventListener("paste", function (e) {
       var f = e.clipboardData && e.clipboardData.files && e.clipboardData.files[0];
-      if (f && /^image\//.test(f.type)) start(f);
+      if (f && /^image\//.test(f.type)) hold(f);
     });
 
     wireViewer();
     $("fl-copy").addEventListener("click", copyReport);
+    $("fl-report-html").addEventListener("click", function () { saveReport("html"); });
+    $("fl-report-pdf").addEventListener("click", function () { saveReport("pdf"); });
+    $("fl-report-json").addEventListener("click", function () { saveReport("json"); });
+    $("fl-save-view").addEventListener("click", saveView);
   }
 
   function renderRecent(list) {
@@ -102,37 +111,55 @@
     };
   }
 
-  // A dropped or pasted file is uploaded to the engine.
-  function start(file) {
-    var fd = new FormData();
-    fd.append("image", file, file.name);
-    fd.append("options", JSON.stringify(options()));
-    submit(fd, file.name);
+  // Adding an image (Browse, drop, paste) only loads it; nothing runs until Analyse is pressed.
+  function ready(name) {
+    say("fl-status", name.split(/[\\/]/).pop() + " is ready. Check the options, then press Analyse.");
+  }
+  function hold(file) {
+    S.pending = file;
+    $("fl-path").value = file.name;
+    ready(file.name);
+  }
+  function analyse() {
+    var f = S.pending;
+    if (f && $("fl-path").value === f.name) start(f); else startPath($("fl-path").value);
   }
 
-  // A path is read by the engine straight from disk.
+  // A dropped or pasted file is handed to Python as base64 (the page can't see its path).
+  function start(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var b64 = String(reader.result).replace(/^data:[^,]*,/, "");
+      submit(api("open_bytes", file.name, b64, options()), file.name);
+    };
+    reader.onerror = function () { say("fl-status", "Couldn't read " + file.name + ".", "error"); };
+    say("fl-status", "Opening " + file.name + "…");
+    reader.readAsDataURL(file);
+  }
+
+  // A path is read by Python straight from disk.
   function startPath(path) {
     path = (path || "").trim().replace(/^"(.*)"$/, "$1");
     if (!path) { say("fl-status", "Choose an image first: Browse…, type its path, or drop it here.", "error"); return; }
-    submit({ path: path, options: options() }, path.split(/[\\/]/).pop());
+    submit(api("open_path", path, options()), path.split(/[\\/]/).pop());
   }
 
-  function submit(body, name) {
+  function submit(call, name) {
     say("fl-status", "Opening " + name + "…");
     $("fl-progress").hidden = false;
     $("fl-progress-bar").style.width = "0%";
-    api("POST", "/api/jobs", body).then(function (r) { follow(r.id); })
+    call.then(function (r) { follow(r.id); })
       .catch(function (e) { $("fl-progress").hidden = true; say("fl-status", e.message, "error"); });
   }
 
   function follow(id) {
     clearTimeout(S.poll);
-    api("GET", "/api/jobs/" + id).then(function (job) {
+    api("job", id).then(function (job) {
       if (job.status === "done") {
         $("fl-progress").hidden = true;
         say("fl-status", "Analysis complete in " + job.seconds + " s. Start with the findings below.", "success");
         show(job, true);
-        api("GET", "/api/config").then(function (c) { renderRecent(c.recent); });
+        api("config").then(function (c) { renderRecent(c.recent); });
         return;
       }
       if (job.status === "error") {
@@ -159,8 +186,6 @@
     else selectTech(S.tech, S.viewIdx);
     renderMeta(job);
     buildReport(job);
-    $("fl-report-html").href = "/api/jobs/" + job.id + "/report.html";
-    $("fl-report-json").href = "/api/jobs/" + job.id + "/report.json";
     if (fresh) $("fl-results-anchor").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -286,31 +311,51 @@
     showView();
   }
 
+  // Python writes each view to a temporary PNG and returns its file:// URL.
+  function setOriginal() {
+    var orig = $("fl-orig"), jobId = S.job.id;
+    if (orig.getAttribute("data-job") === jobId) return;
+    api("original", jobId).then(function (r) {
+      if (S.job && S.job.id === jobId) { orig.src = r.url; orig.setAttribute("data-job", jobId); }
+    }).catch(function (e) { say("fl-caption", e.message, "error"); });
+  }
+
+  var viewToken = 0;
   function showView() {
     var t = techByKey(S.tech);
     var v = t && t.views[S.viewIdx];
     var orig = $("fl-orig"), view = $("fl-view"), stack = $("fl-stack");
     var same = !!(v && v.same_size);
+    var token = ++viewToken;
     ["fl-hold", "fl-blend"].forEach(function (id) { $(id).disabled = !same; });
+    $("fl-save-view").disabled = !v;
     if (!v) {
       view.hidden = true; orig.hidden = false;
-      orig.src = "/api/jobs/" + S.job.id + "/original";
+      stack.removeAttribute("data-loading");
+      setOriginal();
       $("fl-caption").innerHTML = t && t.skipped ? '<span class="skipped">Not run: ' + esc(t.skipped) + "</span>" : "This technique produces findings but no image.";
-      $("fl-save-view").removeAttribute("href");
       return;
     }
     view.hidden = false;
     stack.setAttribute("data-loading", "true");
     view.onload = function () { stack.removeAttribute("data-loading"); };
-    view.src = v.url;
     view.alt = v.label;
+    api("view", S.job.id, S.tech, S.viewIdx).then(function (r) {
+      if (token === viewToken) view.src = r.url;
+    }).catch(function (e) { stack.removeAttribute("data-loading"); say("fl-caption", e.message, "error"); });
     orig.hidden = !same;
-    if (same && orig.getAttribute("src") !== "/api/jobs/" + S.job.id + "/original") orig.src = "/api/jobs/" + S.job.id + "/original";
+    if (same) setOriginal();
     applyBlend();
     $("fl-caption").textContent = v.label + (v.caption ? ". " + v.caption : "") + "  (" + v.width + " × " + v.height + ")";
-    var a = $("fl-save-view");
-    a.href = v.url;
-    a.download = (S.job.exhibit.file.replace(/\.[^.]+$/, "") + "-" + S.tech + "-" + (S.viewIdx + 1) + ".png");
+  }
+
+  function saveView() {
+    var btn = $("fl-save-view");
+    btn.disabled = true;
+    api("save_view", S.job.id, S.tech, S.viewIdx)
+      .then(function (r) { if (r.path) say("fl-caption", "Saved " + r.path, "success"); })
+      .catch(function (e) { say("fl-caption", e.message, "error"); })
+      .then(function () { btn.disabled = false; });
   }
 
   function applyBlend() {
@@ -384,7 +429,7 @@
     $("fl-stack").setAttribute("data-loading", "true");
     if (btn) { btn.disabled = true; btn.textContent = "Searching…"; }
     var keepIdx = S.viewIdx;
-    api("POST", "/api/jobs/" + S.job.id + "/rerun/" + key, opts).then(function (job) {
+    api("rerun", S.job.id, key, opts).then(function (job) {
       S.tech = key;
       S.viewIdx = keepIdx;
       show(job, false);
@@ -456,6 +501,16 @@
     L.push("");
     L.push("These are indicators to guide examination, not proof of authenticity, manipulation or AI generation. Confirm each finding by examination and keep the full report with the case notes.");
     $("fl-report").value = L.join("\n");
+  }
+
+  function saveReport(kind) {
+    var btns = ["fl-report-html", "fl-report-pdf", "fl-report-json"].map($);
+    btns.forEach(function (b) { b.disabled = true; });
+    if (kind === "pdf") say("fl-status", "Choose where to save the PDF. It takes a few seconds to make.");
+    api("save_report", S.job.id, kind)
+      .then(function (r) { say("fl-status", r.path ? "Report saved: " + r.path : "", r.path ? "success" : null); })
+      .catch(function (e) { say("fl-status", e.message, "error"); })
+      .then(function () { btns.forEach(function (b) { b.disabled = false; }); });
   }
 
   function copyReport() {

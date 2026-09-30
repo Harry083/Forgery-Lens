@@ -8,9 +8,9 @@ import pytest
 from PIL import Image
 
 from conftest import decode, demosaic, jpeg_bytes, png_bytes, scene
-from forgery_lens.exhibit import load_bytes
-from forgery_lens.result import NOTABLE
-from forgery_lens.techniques import cfa, clone, double_jpeg, ela, ghost, jpeg_grid, resampling, wavelet
+from backend.exhibit import load_bytes
+from backend.result import NOTABLE
+from backend.techniques import cfa, clone, double_jpeg, ela, ghost, jpeg_grid, resampling, wavelet
 
 
 def notable(res) -> list[str]:
@@ -92,7 +92,7 @@ def test_wavelet_runs_and_reports(base, settings):
 def test_watermark_round_trip():
     pytest.importorskip("imwatermark")
     from imwatermark import WatermarkEncoder
-    from forgery_lens.techniques import watermark
+    from backend.techniques import watermark
 
     img = demosaic(scene(512, 512, seed=10))
     enc = WatermarkEncoder()
@@ -104,7 +104,7 @@ def test_watermark_round_trip():
 
 
 def test_watermark_check_needs_no_optional_packages(settings):
-    from forgery_lens.techniques import watermark
+    from backend.techniques import watermark
 
     res = watermark.run(load_bytes(png_bytes(scene(512, 512, seed=12)), "p.png"), settings)
     assert not res.skipped and len(res.metrics["candidates"]) == 3
