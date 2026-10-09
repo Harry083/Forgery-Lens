@@ -55,7 +55,17 @@ if ($RebuildBootloader) {
   New-Item -ItemType Directory $src | Out-Null
   Run $py -m pip download --no-binary :all: --no-deps "pyinstaller==$pyinstallerVersion" -d $src
   $archive = Get-ChildItem $src -Filter "pyinstaller-*.tar.gz" | Select-Object -First 1
-  Run tar -xzf $archive.FullName -C $src
+  # Unpack with Python, not tar.exe: the archive holds a few symbolic links (changelog notes, test data) that
+  # Windows' own tar can't create without Developer Mode, and the build doesn't need them.
+  $unpack = Join-Path $src "unpack.py"
+  Set-Content -Encoding utf8 $unpack @'
+import sys, tarfile
+with tarfile.open(sys.argv[1]) as archive:
+    members = [m for m in archive.getmembers() if not (m.issym() or m.islnk())]
+    extra = {"filter": "data"} if hasattr(tarfile, "data_filter") else {}
+    archive.extractall(sys.argv[2], members=members, **extra)
+'@
+  Run $py $unpack $archive.FullName $src
   $tree = Join-Path $src "pyinstaller-$pyinstallerVersion"
   Push-Location (Join-Path $tree "bootloader")
   try { Run $py ./waf all --target-arch=64bit } finally { Pop-Location }
