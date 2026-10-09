@@ -64,7 +64,8 @@ The installer is built to avoid the usual false positives of Python apps:
 - **No self-extracting exe.** Clarity is a normal one-folder app. The old single `.exe` unpacked a Python
   runtime to a temp folder on every launch, which is the behaviour antivirus heuristics distrust.
 - **A launcher built from source.** PyInstaller's launcher is compiled from source on the build machine
-  (`-RebuildBootloader`), so it doesn't match the stock launcher that some malware reuses.
+  (`-RebuildBootloader`), so it doesn't match the stock launcher that some malware reuses. The build log
+  shows the compiler output and the launcher's hash, and the build stops if the launcher wasn't rebuilt.
 - **No UPX compression.**
 - **Full version information** (publisher, product, version) on `Clarity.exe` and the installer.
 

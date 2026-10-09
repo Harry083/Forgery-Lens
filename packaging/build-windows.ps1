@@ -44,12 +44,24 @@ Run $Python -m venv .build-venv
 $py = Join-Path $root ".build-venv\Scripts\python.exe"
 Run $py -m pip install --upgrade pip wheel
 Run $py -m pip install -r requirements.txt pytest
+$pyinstallerVersion = "6.22.3"  # pinned so builds are repeatable; raise deliberately
+$started = Get-Date
 if ($RebuildBootloader) {
-  Step "Installing PyInstaller with a locally compiled bootloader"
-  $env:PYINSTALLER_COMPILE_BOOTLOADER = "1"
-  Run $py -m pip install --no-binary pyinstaller --no-cache-dir "pyinstaller>=6.6"
+  # Compile PyInstaller's launcher (the "bootloader") from its source with this machine's C compiler, as
+  # PyInstaller's documentation describes, then install PyInstaller from that source tree.
+  Step "Compiling PyInstaller's launcher from source"
+  $src = Join-Path $env:TEMP "clarity-pyinstaller-src"
+  if (Test-Path $src) { Remove-Item -Recurse -Force $src }
+  New-Item -ItemType Directory $src | Out-Null
+  Run $py -m pip download --no-binary :all: --no-deps "pyinstaller==$pyinstallerVersion" -d $src
+  $archive = Get-ChildItem $src -Filter "pyinstaller-*.tar.gz" | Select-Object -First 1
+  Run tar -xzf $archive.FullName -C $src
+  $tree = Join-Path $src "pyinstaller-$pyinstallerVersion"
+  Push-Location (Join-Path $tree "bootloader")
+  try { Run $py ./waf all --target-arch=64bit } finally { Pop-Location }
+  Run $py -m pip install $tree
 } else {
-  Run $py -m pip install "pyinstaller>=6.6"
+  Run $py -m pip install "pyinstaller==$pyinstallerVersion"
 }
 
 if (-not $SkipTests) {
@@ -64,6 +76,13 @@ if (Test-Path build) { Remove-Item -Recurse -Force build }
 Run $py -m PyInstaller --clean --noconfirm Clarity.spec
 $exe = Join-Path $root "dist\Clarity\Clarity.exe"
 if (-not (Test-Path $exe)) { throw "PyInstaller didn't produce $exe" }
+$launcher = & $py -c "import PyInstaller, os; print(os.path.join(os.path.dirname(PyInstaller.__file__), 'bootloader', 'Windows-64bit-intel', 'runw.exe'))"
+$launcherInfo = Get-Item $launcher
+Write-Host "Launcher: $launcher"
+Write-Host "  built $($launcherInfo.LastWriteTime)  SHA-256 $((Get-FileHash $launcher -Algorithm SHA256).Hash.ToLower())"
+if ($RebuildBootloader -and $launcherInfo.LastWriteTime -lt $started) {
+  throw "The launcher wasn't rebuilt on this machine (it predates this build)"
+}
 
 Step "Self-test of the packaged app"
 $report = Join-Path $env:TEMP "clarity-self-test.json"
