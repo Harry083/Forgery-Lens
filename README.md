@@ -1,16 +1,20 @@
-# Forgery Lens
+# Clarity
 
-A desktop application that checks an image for signs of editing and of AI generation. It runs thirteen forensic
-techniques, among them error level analysis, principal component analysis, luminance gradients, clone detection,
-JPEG ghosts, resampling and camera-pattern analysis, plus provenance, watermark and metadata checks. Results come as
-findings, full-resolution views and an HTML/JSON report.
+A desktop application for forensic image and video work, with two workspaces in one window:
+
+- **Enhance**: make recorded detail visible in CCTV, dash-cam footage and photos. Build a non-destructive chain of
+  31 filters (levels, perspective, deblur, stabilisation, frame integration, super-resolution and more). Compare
+  before and after, measure distances and speed, and export with a report that explains every step.
+- **Authenticate** (formerly Forgery Lens): check an image for signs of editing and of AI generation with thirteen
+  forensic techniques, among them error level analysis, clone detection, JPEG ghosts, resampling and camera-pattern
+  analysis, plus provenance, watermark and metadata checks.
 
 It opens in its own native window, using the operating system's web engine through
 [pywebview](https://pywebview.flowrl.com/) (Edge WebView2 on Windows, WebKit on macOS, WebKitGTK or Qt on
 Linux). **No web server runs and no network port is opened**: the window's JavaScript calls the Python engine
-directly. Images are never uploaded anywhere.
+directly. Evidence is never uploaded anywhere.
 
-![The Forgery Lens viewer, showing a detected clone](docs/app-viewer.png)
+![Clarity's Home screen](docs/home.png)
 
 ## Requirements
 
@@ -42,29 +46,98 @@ Pass `--debug` to enable the web inspector.
 
 ```bash
 python -m pip install pyinstaller
-python -m PyInstaller --clean ForgeryLens.spec
+python -m PyInstaller --clean Clarity.spec
 ```
 
-This builds a single file, `dist/ForgeryLens.exe` (`dist/ForgeryLens` on Linux/macOS), with the Forgery Lens
-icon. It runs on another machine without Python installed. Each launch unpacks the app to a temp folder first,
-so it takes a few seconds to open.
+This builds a single file, `dist/Clarity.exe` (`dist/Clarity` on Linux/macOS), with the Clarity icon. It runs on
+another machine without Python installed. Each launch unpacks the app to a temp folder first, so it takes a few
+seconds to open.
 
-- **Windows:** run `ForgeryLens.exe`. Pin it to the Start menu or taskbar like any other program.
-- **macOS:** run `dist/ForgeryLens`.
-- **Linux:** copy `dist/ForgeryLens` and `forgerylens.png` to `/opt/ForgeryLens/`, then install
-  `forgery-lens.desktop` into `~/.local/share/applications/`.
+- **Windows:** run `Clarity.exe`. Pin it to the Start menu or taskbar like any other program.
+- **macOS:** run `dist/Clarity`.
+- **Linux:** copy `dist/Clarity` and `clarity.png` to `/opt/Clarity/`, then install `clarity.desktop` into
+  `~/.local/share/applications/`.
 
-The icon lives in `forgerylens.ico` (every Windows size, 16–256 px) and `forgerylens.png` (1024 px). To use a
-different one, replace those two files and rebuild.
+The icon lives in `clarity.ico` (every Windows size, 16–256 px) and `clarity.png` (1024 px). To use a different
+one, replace those two files and rebuild. PyInstaller builds for the OS it runs on, so build the Windows `.exe` on
+Windows.
 
-PyInstaller builds for the OS it runs on, so build the Windows `.exe` on Windows.
+## Finding your way around
 
-## Using the app
+The **sidebar** on the left is always visible:
 
-1. **Open an image.** Click **Browse…** to pick it in your system's own file dialog, type or paste its path, or
-   drop the image on the window or paste it. Nothing runs until you press **Analyse**, so you can check the
-   **Options** first (open by default): the ELA quality, the clone-search settings, and which techniques to run.
-   A progress bar follows the analysis.
+- **Open evidence** lists the file open in each workspace, with its type, size and SHA-256. Click one to go
+  back to it.
+- **Home** has a card for each workspace with its main actions. You can drop or paste an image on Home to check it.
+- **Enhance** and **Authenticate** each show their sections underneath (Source, Viewer & filters, Measure…;
+  Image, Summary, Findings, Views…). Click a section to jump to it. The one you're reading is highlighted, and
+  sections with nothing in them yet are dimmed.
+- **Filter guide** explains every enhancement filter, with search and categories.
+
+A file moves between workspaces with one click. In Enhance, **Authenticate this image** checks the still you
+have open. In Authenticate's summary, **Enhance this image** opens the analysed file in Enhance. Images that
+were dropped or pasted have no path on disk, so they need opening with Browse… first.
+
+On a narrow window the sidebar folds into a bar across the top.
+
+## Enhance
+
+![The Enhance workspace](docs/enhance.png)
+
+1. **Source**: **Browse…** for an image or video, or **Image sequence…** to treat several photos as frames (e.g.
+   photos of the same plate for super-resolution). Files are opened read-only and hashed (MD5 and SHA-256) when
+   they open.
+2. **Viewer & filters**: add filters to the chain. They run top to bottom, and each can be switched off,
+   reordered or retuned at any time. Each step shows its result (e.g. *rectified to 785×532 px*, *frames 22–29,
+   8/8 aligned*) and how long it took.
+   - The viewer has **Split** (drag the divider), **After**, **Before** and **Side by side** modes, zoom up to
+     800 % (pixelated, so you see the real pixels), and a histogram.
+   - For video, use the frame slider, ◀ ▶, **← →** (Shift for ±10) and **space** to play.
+   - Filters that need points (perspective corners, crop, neutral point, fisheye circle) have
+     **⌖ Pick on image**. The viewer shows that step's input; click the points, drag to adjust, then press **Done**.
+3. **Measure**: set a scale from something of known length, then measure distances, or speed (km/h and mph)
+   between two frames.
+4. **Case details** for the report. **Save project** stores the chain, case details and measurements with the
+   source's SHA-256. Reopening a project re-checks that hash.
+5. **Export & report**:
+   - **Export frame**: PNG or TIFF (lossless, 8- or 16-bit), or JPEG.
+   - **Export video** for a frame range: lossless FFV1 MKV, Motion-JPEG AVI, MP4, or numbered PNGs with a
+     `SHA256SUMS.txt` manifest. Every export is hashed.
+   - **Report** (HTML or JSON) contains:
+     - the source's hashes, with a statement that the original wasn't modified, and the before/after frame;
+     - for **every step**: what it does, why it's used, how it works, its caveats, all parameters (changed ones
+       highlighted), its result and a thumbnail after that step;
+     - measurements, exports and software versions;
+     - an appendix describing **every** available filter.
+
+| Category | Filters |
+|---|---|
+| Levels & exposure | Levels, Auto contrast stretch, Brightness & contrast, Exposure & gamma, Shadows & highlights (backlit subjects), Histogram equalisation (global / CLAHE) |
+| Colour & channels | White balance (grey world, white patch, picked neutral point, manual), Channel select (RGB, HSV, L\*a\*b\*), Invert, Saturation |
+| Sharpen & deblur | Unsharp mask, Motion deblur (linear PSF, Wiener or Richardson–Lucy), Optical deblur (defocus disc or Gaussian) |
+| Denoise & frequency | Gaussian, Median, Bilateral, Non-local means, Periodic noise removal (automatic FFT notch), Frequency filter (e.g. fingerprints), Background flatten |
+| Geometry & perspective | Crop, Rotate & flip, Resize (nearest keeps real pixels), Aspect ratio correction (CCTV 704×576 → 4:3 …), Perspective correction (4 points, optional known ratio) |
+| Lens & camera | Lens distortion (Brown–Conrady k1/k2), Unroll 360° camera (panorama or virtual PTZ view), Deinterlace |
+| Video & multi-frame | Frame integration (aligned mean/median/sum), Multi-frame super-resolution, Stabilisation (smoothed path or lock to a frame) |
+
+Multi-frame filters see the output of the steps above them for neighbouring frames, so *Deinterlace →
+Stabilise → Frame integration* integrates deinterlaced, stabilised frames. Intermediate results are cached
+per frame, so moving a slider only re-runs the steps after it.
+
+Enhance's limits:
+- Video is decoded with OpenCV's FFmpeg backend, so proprietary DVR formats (`.dav` …) may need remuxing to a
+  standard container first.
+- Speeds use the container's frame rate. Check it against an on-screen clock.
+- Measurements are valid only in the plane of the scale reference.
+- Enhancement makes recorded detail visible; it can't create detail that wasn't captured.
+
+## Authenticate
+
+![The Authenticate workspace](docs/authenticate.png)
+
+1. **Image.** Click **Browse…** to pick an image, type or paste its path, or drop or paste the image (on Home
+   or here). Nothing runs until you press **Analyse**, so you can check the **Options** first: the ELA quality,
+   the clone-search settings, and which techniques to run. A progress bar follows the analysis.
 2. **Summary and Findings.** These are grouped into editing and manipulation, AI-generated imagery, and metadata
    and provenance. Each finding is marked *worth a closer look* or *minor*, and routine notes are folded away.
    **Show me** jumps to the view that found it.
@@ -82,14 +155,12 @@ PyInstaller builds for the OS it runs on, so build the Windows `.exe` on Windows
    to match your region. On macOS and Linux it is printed by Microsoft Edge or Google Chrome running in the
    background, so one of them must be installed there.
 
-![Summary and findings](docs/app-findings.png)
-
 Recent analyses stay in memory until you close the app. The views you look at are written as PNGs to a
 temporary folder, which is deleted when the app closes; nothing else is written to disk except what you save.
 
-## Batch work from the command line
+### Batch checks from the command line
 
-The same engine also runs without the window, for folders of images. Run it from source:
+The Authenticate engine also runs without the window, for folders of images. Run it from source:
 
 ```bash
 python app.py analyse photo.jpg --open            # one image, open its report
@@ -107,9 +178,9 @@ full-resolution PNG. Options:
 | `--only ela,clone,ghost` / `--skip spectrum` | choose techniques |
 | `--format json`, `--no-maps` | lighter output for batch work |
 
-## What it checks
+### What it checks
 
-### Editing and manipulation
+#### Editing and manipulation
 
 | Technique | Looks for | Reference |
 |---|---|---|
@@ -124,7 +195,7 @@ full-resolution PNG. Options:
 | **Resampling** | Periodic interpolation traces from resizing or rotating, in the whole image or in one pasted region | Popescu & Farid 2005; Kirchner 2008 |
 | **Camera demosaicing (CFA)** | The camera's colour-filter interpolation pattern, and regions that lack it | Popescu & Farid 2005; Ferrara et al. 2012 |
 
-### AI-generated imagery
+#### AI-generated imagery
 
 | Check | Strength | Notes |
 |---|---|---|
@@ -138,7 +209,7 @@ How much to trust these: per-image signal checks for AI generation are not relia
 from Stable Diffusion, SDXL and Flux showed no clear spectral fingerprint. The dependable signals are provenance
 and watermarks, so the report keeps the weak checks at "minor" and never lets one of them drive a conclusion.
 
-### Metadata and provenance
+#### Metadata and provenance
 
 The tool reads the file's own bytes and checks:
 - JPEG segments, quantisation tables (and the quality they imply) and chroma subsampling
@@ -148,7 +219,7 @@ The tool reads the file's own bytes and checks:
 
 It flags editing software, dimension and thumbnail mismatches, stripped EXIF, and modification after capture.
 
-## Limitations
+### Limitations
 
 - Every technique produces false positives. Common causes are fine texture, repeating patterns, heavy
   recompression, out-of-focus areas and high-contrast edges. Every technique can also miss careful work. Findings
@@ -165,26 +236,42 @@ It flags editing software, dimension and thumbnail mismatches, stripped EXIF, an
 ## Project structure
 
 ```
-forgery-lens/
+clarity/ (this repository)
 ├── backend/
-│   ├── api.py            the methods the window calls (window.pywebview.api.*), and the analysis jobs
+│   ├── api.py            the methods the window calls (window.pywebview.api.*): Authenticate's, plus Enhance's as en_*
 │   ├── cli.py            command line (analyse, techniques)
-│   ├── analyse.py        runs every technique over one image
+│   ├── analyse.py        runs every Authenticate technique over one image
 │   ├── exhibit.py        loading, hashing (images are decoded exactly as stored)
 │   ├── metadata.py       JPEG/PNG/WebP/EXIF/XMP/C2PA parsing
-│   ├── report.py         HTML/JSON reports and full-resolution maps
-│   └── techniques/       one module per technique
-├── frontend/             vanilla HTML/CSS/JS UI; styles.css + fonts/ are the shared tool style kit
-├── tests/                pytest suite (techniques, metadata, app API); builds its own test images
+│   ├── report.py         Authenticate's HTML/PDF/JSON reports and full-resolution maps
+│   ├── techniques/       one module per Authenticate technique
+│   └── enhance/          the Enhance workspace
+│       ├── filters.py    every filter, its parameters and its explanations
+│       ├── align.py      frame registration (phase correlation + ECC, ORB + RANSAC)
+│       ├── pipeline.py   runs the chain on a frame, with caching and access to other frames
+│       ├── media.py      read-only image / sequence / video sources and hashing
+│       ├── export.py     frame and video exports, hashed
+│       ├── report.py     Enhance's HTML/JSON report and the filter reference
+│       └── api.py        Enhance's methods (exposed as en_* by backend/api.py)
+├── frontend/
+│   ├── index.html        the window: sidebar, Home, Enhance, Authenticate, Filter guide
+│   ├── styles.css        the shared tool style kit (+ fonts/)
+│   ├── shell.css/.js     sidebar navigation, Home, moving files between workspaces
+│   ├── enhance.css, enhance/   the Enhance workspace
+│   └── authenticate.js   the Authenticate workspace
+├── tests/                pytest suite (both workspaces and the app API) and dev_server.py
 ├── docs/                 screenshots
 ├── app.py                entry point: opens the native window (no server, no port), or the CLI with a command
-├── ForgeryLens.spec      PyInstaller one-file build
-├── forgerylens.ico/.png  the app icon
-├── forgery-lens.desktop  Linux menu launcher
+├── Clarity.spec          PyInstaller one-file build
+├── clarity.ico/.png      the app icon
+├── clarity.desktop       Linux menu launcher
 └── requirements.txt
 ```
 
 Run the tests with `pip install pytest` then `python -m pytest tests`.
+
+`python tests/dev_server.py` serves the interface to an ordinary browser at http://127.0.0.1:8765, with the
+real engine behind it, for UI work. The desktop app itself never opens a port.
 
 ## Licence
 

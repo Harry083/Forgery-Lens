@@ -1,3 +1,3 @@
-"""Forgery Lens: image forgery and AI-generated imagery detection."""
+"""Clarity: forensic image and video enhancement, and image authentication (formerly Forgery Lens)."""
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"

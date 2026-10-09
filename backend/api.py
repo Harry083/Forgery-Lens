@@ -1,5 +1,9 @@
 """The desktop app's backend: every method is callable from the page as window.pywebview.api.<name>(...).
 
+The Authenticate workspace (forgery and AI-image checks) uses the methods defined here. The Enhance workspace's
+methods live in backend/enhance/api.py and are added to this class with an `en_` prefix, because pywebview
+exposes a single object to the page.
+
 Nothing listens on a network port. pywebview passes calls straight from the window's JavaScript to this
 object. Each method returns {"ok": True, "data": ...} or {"ok": False, "error": "..."}.
 
@@ -29,6 +33,7 @@ import numpy as np
 
 from . import __version__
 from .analyse import Analysis, analyse
+from .enhance.api import EnhanceApi
 from .exhibit import ExhibitError, load, load_bytes
 from .report import PdfError, render_html, render_pdf, render_print_html
 from .result import Result
@@ -127,7 +132,7 @@ def _pdf_with_webview2(page_html: str, out: Path, folder: Path) -> bool:
     folder.mkdir(parents=True, exist_ok=True)
     src = folder / f"print-{uuid.uuid4().hex[:8]}.html"
     src.write_text(page_html, encoding="utf-8")
-    win = webview.create_window("Forgery Lens PDF", url=src.as_uri(), hidden=True, width=1100, height=900)
+    win = webview.create_window("Clarity PDF", url=src.as_uri(), hidden=True, width=1100, height=900)
     try:
         if not win.events.loaded.wait(60):
             raise PdfError("The report didn't load for printing.")
@@ -282,12 +287,14 @@ class Jobs:
 
 class Api:
     def __init__(self, folder: Path | None = None) -> None:
-        self._folder = folder or Path(tempfile.mkdtemp(prefix="forgery-lens-"))
+        self._folder = folder or Path(tempfile.mkdtemp(prefix="clarity-"))
         self._jobs = Jobs(self._folder)
         self._window = None
+        self._enhance = EnhanceApi()
 
     def _attach(self, window) -> None:
         self._window = window
+        self._enhance._attach(window)
 
     def _close(self) -> None:
         """Delete every PNG this session wrote."""
@@ -427,7 +434,7 @@ class Api:
         job = self._finished(jid)
         if kind not in ("html", "pdf", "json"):
             kind = "html"
-        path = self._save_dialog(f"{self._stem(job)}-forgery-lens-report.{kind}", kind, f"{kind.upper()} file",
+        path = self._save_dialog(f"{self._stem(job)}-authenticity-report.{kind}", kind, f"{kind.upper()} file",
                                  self._start_dir(job))
         if not path:
             return {"path": ""}
@@ -445,3 +452,17 @@ class Api:
         except OSError as exc:
             raise ApiError(f"Could not save the report: {exc}") from exc
         return {"path": path}
+
+
+def _delegate(name: str):
+    def method(self, *args):
+        return getattr(self._enhance, name)(*args)
+
+    method.__name__ = method.__qualname__ = f"en_{name}"
+    method.__doc__ = getattr(EnhanceApi, name).__doc__
+    return method
+
+
+# Expose the Enhance workspace's methods as en_<name>; each already returns {"ok", "data"|"error"}.
+for _name in [n for n in vars(EnhanceApi) if not n.startswith("_") and callable(getattr(EnhanceApi, n))]:
+    setattr(Api, f"en_{_name}", _delegate(_name))

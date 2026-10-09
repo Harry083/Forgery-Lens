@@ -1,5 +1,5 @@
 /* =========================================================
-   Forgery Lens — styled to match harrylsmallwood.com
+   Clarity — styled to match harrylsmallwood.com (the shared Harry Smallwood tools kit)
    Slate-and-charcoal panels with a warm orange accent: a floating
    glass pill for the header, large rounded panels, pill buttons
    and big light headings.
@@ -490,7 +490,7 @@ select:focus {
 }
 
 /* =========================================================
-   Forgery Lens components, built from the same tokens
+   Authenticate workspace components, built from the same tokens
    ========================================================= */
 
 [hidden] { display: none !important; }

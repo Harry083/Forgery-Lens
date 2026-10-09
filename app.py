@@ -1,4 +1,4 @@
-"""Launch Forgery Lens as a desktop application (a native window, no local web server or port).
+"""Launch Clarity as a desktop application (a native window, no local web server or port).
 
 With a command it runs the batch command line instead: python app.py analyse photo.jpg
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 FRONTEND_DIR = BASE_DIR / "frontend"
 # Title-bar/taskbar icon. Windows needs the .ico (pywebview loads it as a Windows icon); GTK/Qt take the PNG.
-ICON_PATH = BASE_DIR / ("forgerylens.ico" if os.name == "nt" else "forgerylens.png")
+ICON_PATH = BASE_DIR / ("clarity.ico" if os.name == "nt" else "clarity.png")
 CLI_COMMANDS = {"analyse", "analyze", "techniques", "-h", "--help", "--version"}
 
 
@@ -29,12 +29,12 @@ def main() -> int:
 
     api = Api()
     window = webview.create_window(
-        "Forgery Lens",
+        "Clarity",
         url=(FRONTEND_DIR / "index.html").as_uri(),  # file://, served by nothing
         js_api=api,
-        width=1320,
-        height=920,
-        min_size=(900, 640),
+        width=1480,
+        height=960,
+        min_size=(1000, 680),
         background_color="#1c2023",  # matches --bg in styles.css, so there's no white flash on open
         text_select=True,
     )

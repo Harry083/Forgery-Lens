@@ -1,5 +1,5 @@
-// Forgery Lens: the desktop window's interface. The analysis runs in Python;
-// the page calls it directly through pywebview's bridge, with no server or port.
+// Clarity's Authenticate workspace (formerly Forgery Lens): editing and AI-generation checks. The analysis
+// runs in Python; the page calls it directly through pywebview's bridge, with no server or port.
 
 (function () {
   "use strict";
@@ -57,7 +57,7 @@
     // Typing over a dropped file's name means the typed path is wanted instead.
     path.addEventListener("input", function () { S.pending = null; });
     // Browse opens the operating system's own file dialog, attached to the app window.
-    document.querySelectorAll(".browse-btn").forEach(function (btn) {
+    document.querySelectorAll("#fl-drop .browse-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {
         var input = btn.closest(".path-input-row").querySelector(".path-input");
         btn.disabled = true;
@@ -74,9 +74,12 @@
       drop.addEventListener(ev, function (e) { e.preventDefault(); drop.removeAttribute("data-over"); });
     });
     drop.addEventListener("drop", function (e) { if (e.dataTransfer.files[0]) hold(e.dataTransfer.files[0]); });
+    // A pasted image goes to Authenticate, from Home or Authenticate (Enhance needs a file on disk).
     document.addEventListener("paste", function (e) {
       var f = e.clipboardData && e.clipboardData.files && e.clipboardData.files[0];
-      if (f && /^image\//.test(f.type)) hold(f);
+      if (!f || !/^image\//.test(f.type) || !(Shell.is("authenticate") || Shell.is("home"))) return;
+      Shell.go("authenticate");
+      hold(f);
     });
 
     wireViewer();
@@ -85,6 +88,9 @@
     $("fl-report-pdf").addEventListener("click", function () { saveReport("pdf"); });
     $("fl-report-json").addEventListener("click", function () { saveReport("json"); });
     $("fl-save-view").addEventListener("click", saveView);
+    $("to-enhance").addEventListener("click", function () {
+      if (S.job && S.job.exhibit.path) Shell.toEnhance(S.job.exhibit.path);
+    });
   }
 
   function renderRecent(list) {
@@ -146,6 +152,7 @@
 
   function submit(call, name) {
     say("fl-status", "Opening " + name + "…");
+    S.running = { exhibit: { file: name, format: "", width: "…", height: "…" }, status: "running" };
     $("fl-progress").hidden = false;
     $("fl-progress-bar").style.width = "0%";
     call.then(function (r) { follow(r.id); })
@@ -155,6 +162,7 @@
   function follow(id) {
     clearTimeout(S.poll);
     api("job", id).then(function (job) {
+      S.running = job.status === "done" || job.status === "error" ? null : job;
       if (job.status === "done") {
         $("fl-progress").hidden = true;
         say("fl-status", "Analysis complete in " + job.seconds + " s. Start with the findings below.", "success");
@@ -177,6 +185,10 @@
 
   function show(job, fresh) {
     S.job = job;
+    var toEnhance = $("to-enhance");
+    toEnhance.disabled = !job.exhibit.path;
+    toEnhance.title = job.exhibit.path ? "Open this image in the Enhance workspace"
+      : "Enhance needs the file on disk: open it with Browse… rather than dropping or pasting it";
     $("fl-workspace").hidden = false;
     renderFileInfo(job);
     renderSummary(job);
@@ -519,6 +531,13 @@
     var fail = function () { $("fl-report").select(); say("fl-report-status", "Couldn't copy automatically. The text is selected; press Ctrl/Cmd+C.", "error"); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, fail); else fail();
   }
+
+  // For the shell: the sidebar's evidence list and handing a file over from Enhance.
+  window.FL = {
+    job: function () { return S.running || S.job; },
+    hold: hold,
+    analysePath: function (path) { $("fl-path").value = path; S.pending = null; startPath(path); }
+  };
 
   init();
 })();

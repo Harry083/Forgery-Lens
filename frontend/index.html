@@ -3,173 +3,505 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Forgery Lens</title>
+<title>Clarity</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="shell.css" />
+<link rel="stylesheet" href="enhance.css" />
 </head>
-<body>
+<body class="app">
 
-<header class="site-header">
-  <div class="wrap">
-    <a class="brand" href="#">
-      <span class="brand-mark">FL</span>
-      <span class="brand-text">Forgery Lens</span>
-    </a>
-    <nav class="primary-nav">
-      <ul>
-        <li><a href="https://harrylsmallwood.com/forgery-lens" target="_blank" rel="noopener">Guide</a></li>
-        <li><a class="nav-cta" href="https://github.com/Harry083/Forgery-Lens" target="_blank" rel="noopener">GitHub ↗</a></li>
-      </ul>
-    </nav>
+<!-- ================= Sidebar: brand, open evidence, navigation ================= -->
+<aside class="sidebar" aria-label="Clarity">
+  <a class="brand side-brand" href="#" data-go="home">
+    <span class="brand-mark">CL</span>
+    <span class="brand-text">Clarity<small>forensic image &amp; video</small></span>
+  </a>
+
+  <div class="evidence-card" id="evidence-card">
+    <div class="side-label">Open evidence</div>
+    <div id="evidence-list"><p class="evidence-empty">Nothing open yet.</p></div>
   </div>
-</header>
 
-<main class="wrap">
-  <section class="hero">
-    <p class="hero-eyebrow">FL ·desktop app, your image never leaves this machine</p>
-    <h1>Forgery Lens</h1>
-    <p class="lede">Check a photo for signs of editing and of AI generation. Error level analysis, clone detection, JPEG ghosts, resampling, camera-pattern and noise checks, watermarks and provenance, with every view and the file's metadata side by side.</p>
-  </section>
+  <nav class="side-nav" aria-label="Workspaces">
+    <a href="#" class="nav-item" data-go="home"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-4.5v-5.5h-5V21H5a1 1 0 0 1-1-1z"/></svg></span>Home</a>
 
-  <section class="panel drop-panel" id="fl-drop">
-    <div class="panel-title">01 · Image</div>
-    <h2>The image <span class="hint">photo or screenshot to examine</span></h2>
-    <div class="path-input-row">
-      <input type="text" id="fl-path" class="path-input" placeholder="C:\path\to\image.jpg" aria-label="Image path" spellcheck="false" />
-      <button class="btn browse-btn" type="button" data-browse="file">Browse…</button>
-      <button class="btn btn-primary run-btn" type="button" id="fl-run"><span class="btn-icon" aria-hidden="true">▶</span>Analyse</button>
+    <div class="side-label">Workspaces</div>
+    <a href="#" class="nav-item" data-go="enhance"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="fill"/></svg></span>Enhance<span class="nav-hint">image &amp; video</span></a>
+    <div class="nav-sub" data-for="enhance">
+      <a href="#" data-target="en-source">Source</a>
+      <a href="#" data-target="workspace">Viewer &amp; filters</a>
+      <a href="#" data-target="measure-panel">Measure</a>
+      <a href="#" data-target="case-panel">Case details</a>
+      <a href="#" data-target="output-panel">Export &amp; report</a>
     </div>
-    <div class="drop-zone">
-      <span class="drop-hint">…or drop an image here, or paste one, then press Analyse. JPEG, PNG, WebP, TIFF or BMP.</span>
+    <a href="#" class="nav-item" data-go="authenticate"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/><path d="m8 10.6 1.8 1.8L13.2 9"/></svg></span>Authenticate<span class="nav-hint">editing &amp; AI checks</span></a>
+    <div class="nav-sub" data-for="authenticate">
+      <a href="#" data-target="fl-drop">Image</a>
+      <a href="#" data-target="fl-results-anchor">Summary</a>
+      <a href="#" data-target="fl-findings-panel">Findings</a>
+      <a href="#" data-target="fl-viewer">Views</a>
+      <a href="#" data-target="fl-meta-panel">Metadata</a>
+      <a href="#" data-target="fl-report-anchor">Report</a>
     </div>
-    <div class="file-status" id="fl-status" role="status" aria-live="polite"></div>
-    <div class="recent" id="fl-recent" hidden></div>
-    <details class="raw-details options" open>
-      <summary>Options</summary>
-      <div class="controls-row">
-        <label class="model-select-label">
-          ELA resave quality
-          <select id="opt-ela-quality">
-            <option value="70">70</option>
-            <option value="75">75</option>
-            <option value="80">80</option>
-            <option value="85">85</option>
-            <option value="90" selected>90 (default)</option>
-            <option value="95">95</option>
-          </select>
-        </label>
-        <label class="model-select-label">
-          Clone search size
-          <select id="opt-clone-size">
-            <option value="1024">1024 px (fastest)</option>
-            <option value="1536" selected>1536 px</option>
-            <option value="2048">2048 px (slower)</option>
-            <option value="4096">4096 px (slowest, smallest clones)</option>
-          </select>
-        </label>
-        <label class="model-select-label">
-          Clone sensitivity
-          <select id="opt-clone-sens">
-            <option value="strict">Strict</option>
-            <option value="normal" selected>Normal</option>
-            <option value="sensitive">Sensitive</option>
-          </select>
+
+    <div class="side-label">Reference</div>
+    <a href="#" class="nav-item" data-go="guide"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H19v14H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><path d="M9 8.5h6M9 11.5h4"/></svg></span>Filter guide</a>
+  </nav>
+
+  <div class="side-foot">
+    <p class="side-private"><span class="dot-live" aria-hidden="true"></span>Offline. Nothing is uploaded.</p>
+    <p class="mono" id="footer-version">desktop · offline</p>
+    <p class="side-links">
+      <a href="https://harrylsmallwood.com/clarity" target="_blank" rel="noopener">Guide</a> ·
+      <a href="https://github.com/Harry083/Forgery-Lens" target="_blank" rel="noopener">GitHub ↗</a> ·
+      <a href="https://harrylsmallwood.com/tools" target="_blank" rel="noopener">Harry Smallwood tools</a>
+    </p>
+  </div>
+</aside>
+
+<main class="content">
+
+  <!-- ================= Home ================= -->
+  <div id="view-home" class="view">
+    <section class="hero home-hero">
+      <p class="hero-eyebrow">CL · desktop app, your evidence never leaves this machine</p>
+      <h1>Clarity</h1>
+      <p class="lede">Forensic image and video work in one place. Make recorded detail visible, or check whether an
+        image has been edited or generated, with a report that explains every step.</p>
+    </section>
+
+    <section class="start-grid">
+      <article class="start-card" data-drop="enhance">
+        <div class="start-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="fill"/></svg></div>
+        <h2>Enhance</h2>
+        <p class="start-lede">Bring out detail in CCTV, dash-cam and photos: levels, perspective, deblur, stabilisation,
+          frame integration, super-resolution and more.</p>
+        <ul class="start-list">
+          <li>Non-destructive filter chain with before/after</li>
+          <li>Measure distances and speed</li>
+          <li>Hashed exports and a step-by-step report</li>
+        </ul>
+        <div class="start-actions">
+          <button class="btn btn-primary" type="button" id="home-enhance"><span class="btn-icon" aria-hidden="true">↗</span>Open image or video…</button>
+          <button class="btn" type="button" id="home-sequence">Image sequence…</button>
+          <button class="btn" type="button" id="home-project">Open project…</button>
+        </div>
+      </article>
+
+      <article class="start-card" data-drop="authenticate" id="home-auth-card">
+        <div class="start-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/><path d="m8 10.6 1.8 1.8L13.2 9"/></svg></div>
+        <h2>Authenticate</h2>
+        <p class="start-lede">Check a photo for signs of editing and of AI generation: error levels, clones, JPEG ghosts,
+          resampling, camera pattern, noise, watermarks and metadata.</p>
+        <ul class="start-list">
+          <li>Thirteen techniques, findings ranked by weight</li>
+          <li>Full-resolution views of every technique</li>
+          <li>HTML, PDF and JSON reports</li>
+        </ul>
+        <div class="start-actions">
+          <button class="btn btn-primary" type="button" id="home-auth"><span class="btn-icon" aria-hidden="true">↗</span>Check an image…</button>
+          <span class="drop-hint">or drop / paste an image here</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="steps-strip" aria-label="How it works">
+      <div class="strip-step"><span class="strip-no">1</span><div><strong>Open evidence</strong><span>Read-only, hashed with MD5 and SHA-256 when it opens.</span></div></div>
+      <div class="strip-step"><span class="strip-no">2</span><div><strong>Enhance or examine</strong><span>Move the same file between workspaces from the sidebar.</span></div></div>
+      <div class="strip-step"><span class="strip-no">3</span><div><strong>Report</strong><span>Every step, parameter and finding, explained for the reader.</span></div></div>
+    </section>
+  </div>
+
+  <!-- ================= Enhance ================= -->
+  <div id="view-enhance" class="view" hidden>
+    <header class="page-head">
+      <p class="hero-eyebrow">Enhance · image and video</p>
+      <h1 class="page-title">Enhance</h1>
+      <p class="lede">Build a chain of filters, compare before and after, measure, and export with a report that explains every step.</p>
+    </header>
+
+    <section class="panel picker-card" id="en-source">
+      <div class="card-title-row">
+        <div class="panel-title">01 · Source</div>
+        <div class="title-actions">
+          <button id="open-project" class="btn small-btn" type="button">Open project…</button>
+          <button id="save-project" class="btn small-btn" type="button" disabled>Save project</button>
+        </div>
+      </div>
+      <h2>Evidence <span class="hint">an image, a video, or several images as a sequence · opened read-only</span></h2>
+      <div class="path-input-row">
+        <input type="text" id="source-input" class="path-input" placeholder="D:\Case-001\camera3.mp4  or  /evidence/plate.jpg" spellcheck="false" />
+        <button class="btn browse-btn" id="browse-media" type="button">Browse…</button>
+        <button class="btn browse-btn" id="browse-sequence" type="button" title="Pick several images to treat as frames, e.g. photos of the same object for super-resolution">Image sequence…</button>
+      </div>
+      <div class="file-status" id="source-status"></div>
+      <div id="source-meta" class="source-meta hidden"></div>
+      <div class="handoff hidden" id="to-authenticate-row">
+        <span class="inline-note">A still image can also be checked for editing and AI generation.</span>
+        <button id="to-authenticate" class="btn small-btn" type="button"><span class="btn-svg"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/><path d="m8 10.6 1.8 1.8L13.2 9"/></svg></span>Authenticate this image</button>
+      </div>
+    </section>
+
+    <div id="workspace" class="workspace hidden">
+      <section class="panel viewer-panel">
+        <div class="card-title-row">
+          <div class="panel-title">02 · Viewer</div>
+          <span id="render-pill" class="pill">ready</span>
+        </div>
+        <div class="viewer-toolbar">
+          <div class="tabs" id="view-mode" role="tablist">
+            <button type="button" role="tab" data-view="split" aria-selected="true">Split</button>
+            <button type="button" role="tab" data-view="after" aria-selected="false">After</button>
+            <button type="button" role="tab" data-view="before" aria-selected="false">Before</button>
+            <button type="button" role="tab" data-view="side" aria-selected="false">Side by side</button>
+          </div>
+          <label class="zoom-label">Zoom
+            <select id="zoom-select">
+              <option value="fit" selected>Fit</option>
+              <option value="0.5">50%</option>
+              <option value="1">100%</option>
+              <option value="2">200%</option>
+              <option value="4">400%</option>
+              <option value="8">800%</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="pick-banner" class="pick-banner hidden">
+          <span id="pick-text"></span>
+          <span class="pick-actions">
+            <button id="pick-clear" class="btn small-btn" type="button">Clear</button>
+            <button id="pick-done" class="btn btn-primary small-btn" type="button">Done</button>
+          </span>
+        </div>
+
+        <div class="viewer-stage" id="viewer-stage" data-zoom="fit" data-view="split">
+          <div class="viewer-grid">
+            <div class="viewer-box before-box">
+              <img id="before-side" alt="Original frame" />
+              <span class="corner-label">Before</span>
+            </div>
+            <div class="viewer-box main-box" id="main-box">
+              <img id="after-img" alt="Processed frame" />
+              <img id="before-img" class="before-overlay" alt="Original frame" />
+              <svg id="overlay" class="overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+              <div id="split-handle" class="split-handle"><span>‹ ›</span></div>
+              <span class="corner-label left">Before</span>
+              <span class="corner-label right">After</span>
+            </div>
+          </div>
+        </div>
+        <div class="viewer-foot">
+          <div id="transport" class="transport hidden">
+            <button class="btn icon-btn" id="first-frame" type="button" title="First frame">⏮</button>
+            <button class="btn icon-btn" id="prev-frame" type="button" title="Previous frame (←)">◀</button>
+            <button class="btn icon-btn" id="play-btn" type="button" title="Play / pause (space)">▶</button>
+            <button class="btn icon-btn" id="next-frame" type="button" title="Next frame (→)">▶|</button>
+            <input type="range" id="frame-slider" min="0" max="0" value="0" aria-label="Frame" />
+            <input type="number" id="frame-input" class="path-input frame-input" min="0" value="0" title="Frame number" />
+            <span id="frame-time" class="frame-time mono"></span>
+          </div>
+          <div class="viewer-info">
+            <canvas id="histogram" width="256" height="64" title="Histogram of the processed frame"></canvas>
+            <div id="viewer-caption" class="caption"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel chain-panel">
+        <div class="card-title-row">
+          <div class="panel-title">03 · Filters</div>
+          <span id="chain-count" class="pill">empty</span>
+        </div>
+        <h2>Processing chain <span class="hint">applied top to bottom</span></h2>
+        <div class="add-row">
+          <select id="add-select" aria-label="Filter to add"></select>
+          <button id="add-btn" class="btn btn-primary small-btn" type="button">+ Add</button>
+        </div>
+        <div id="chain-list" class="chain-list">
+          <p class="placeholder">Add a filter to start. Nothing is changed in the source.</p>
+        </div>
+        <div class="chain-foot">
+          <button id="chain-clear" class="btn small-btn" type="button">Clear chain</button>
+          <label class="check"><input type="checkbox" id="bypass-all" /><span>Bypass all</span></label>
+        </div>
+      </section>
+    </div>
+
+    <details class="panel case-details hidden" id="measure-panel">
+      <summary>
+        <div class="panel-title">04 · Measure</div>
+        <h2>Measurements <span class="hint">distances and speed on the processed image</span></h2>
+      </summary>
+      <p class="guide">Rectify the plane first (lens distortion, perspective). Then <strong>set the scale</strong> by
+        drawing along something of known length in that plane, and measure other distances in the same plane. For
+        <strong>speed</strong>, mark a point on the vehicle in one frame, move to a later frame, and mark the same
+        point again.</p>
+      <div class="measure-tools">
+        <div class="tabs" id="measure-tools" role="tablist">
+          <button type="button" data-tool="scale" aria-selected="false">Set scale</button>
+          <button type="button" data-tool="distance" aria-selected="false">Distance</button>
+          <button type="button" data-tool="speed" aria-selected="false">Speed</button>
+        </div>
+        <label class="model-select-label inline">Reference length
+          <span class="inline-fields">
+            <input type="number" id="scale-length" class="path-input num" min="0" step="any" value="1" />
+            <select id="scale-unit"><option value="m">m</option><option value="cm">cm</option><option value="mm">mm</option><option value="ft">ft</option><option value="in">in</option></select>
+          </span>
         </label>
       </div>
-      <h3>Techniques to run</h3>
-      <div class="checks" id="opt-techniques"></div>
+      <div id="measure-hint" class="file-status"></div>
+      <div id="measure-list" class="metadata-panel"><p class="placeholder">No measurements yet.</p></div>
     </details>
-  </section>
 
-  <section class="panel progress-section" id="fl-progress" hidden>
-    <div class="progress-bar-track">
-      <div id="fl-progress-bar" class="progress-bar-fill"></div>
-    </div>
-    <div class="progress-label" id="fl-progress-text">Starting…</div>
-  </section>
+    <details class="panel case-details hidden" id="case-panel">
+      <summary>
+        <div class="panel-title">05 · Case</div>
+        <h2>Case details <span class="hint">shown in the report and saved in the project</span></h2>
+      </summary>
+      <div class="case-grid">
+        <label class="field-label">Case number<input type="text" class="path-input full" data-case="case_number" /></label>
+        <label class="field-label">Exhibit / item<input type="text" class="path-input full" data-case="exhibit" /></label>
+        <label class="field-label">Examiner<input type="text" class="path-input full" data-case="examiner" /></label>
+        <label class="field-label">Organisation<input type="text" class="path-input full" data-case="organisation" /></label>
+        <label class="field-label wide">Request<input type="text" class="path-input full" data-case="request" placeholder="e.g. Enhance the registration plate of the silver hatchback at 14:02:31" /></label>
+        <label class="field-label wide">Notes<input type="text" class="path-input full" data-case="notes" /></label>
+      </div>
+    </details>
 
-  <div id="fl-workspace" hidden>
-    <section class="panel results-section" id="fl-results-anchor">
-      <div class="results-header">
-        <h2>Summary</h2>
-        <div class="report-actions">
-          <button id="fl-report-html" class="btn btn-primary report-btn" type="button"><span class="btn-icon" aria-hidden="true">↓</span>Save HTML report</button>
-          <button id="fl-report-pdf" class="btn report-btn" type="button">Save PDF</button>
-          <button id="fl-report-json" class="btn report-btn" type="button">Save JSON</button>
+    <section class="panel hidden" id="output-panel">
+      <div class="panel-title">06 · Output</div>
+      <h2>Export and report <span class="hint">outputs are hashed and listed in the report</span></h2>
+      <div class="output-grid">
+        <div class="output-box">
+          <h3>Frame</h3>
+          <div class="controls-row compact">
+            <label class="model-select-label">Format
+              <select id="image-format">
+                <option value=".png">PNG (lossless)</option>
+                <option value=".tif">TIFF (lossless)</option>
+                <option value=".jpg">JPEG (lossy)</option>
+              </select>
+            </label>
+            <label class="model-select-label">Bit depth
+              <select id="image-depth"><option value="8">8-bit</option><option value="16">16-bit (PNG/TIFF)</option></select>
+            </label>
+          </div>
+          <button id="export-image" class="btn" type="button"><span class="btn-icon" aria-hidden="true">↓</span>Export frame</button>
+        </div>
+        <div class="output-box" id="video-export-box">
+          <h3>Video</h3>
+          <div class="controls-row compact">
+            <label class="model-select-label">Format <select id="video-format"></select></label>
+            <label class="model-select-label">From frame
+              <span class="inline-fields"><input type="number" id="range-start" class="path-input num" min="0" value="0" /><button class="btn icon-btn" id="range-start-here" type="button" title="Use the current frame">⇤</button></span>
+            </label>
+            <label class="model-select-label">To frame
+              <span class="inline-fields"><input type="number" id="range-end" class="path-input num" min="0" value="0" /><button class="btn icon-btn" id="range-end-here" type="button" title="Use the current frame">⇥</button></span>
+            </label>
+          </div>
+          <button id="export-video" class="btn" type="button"><span class="btn-icon" aria-hidden="true">↓</span>Export video</button>
+        </div>
+        <div class="output-box">
+          <h3>Report</h3>
+          <p class="inline-note">Source hashes, the before/after frame, every step with its parameters and an
+            explanation, measurements, exports and a reference of all filters.</p>
+          <div class="report-actions">
+            <button id="report-view" class="btn btn-primary en-report-btn" type="button"><span class="btn-icon" aria-hidden="true">↗</span>View report</button>
+            <button id="report-html" class="btn en-report-btn" type="button">Save HTML</button>
+            <button id="report-json" class="btn en-report-btn" type="button">Save JSON</button>
+          </div>
         </div>
       </div>
-      <div class="score-cards" id="fl-summary"></div>
-      <div class="metadata-panel" id="fl-fileinfo"></div>
-    </section>
 
-    <section class="panel">
-      <div class="results-header">
-        <h2>Findings</h2>
-      </div>
-      <div id="fl-findings"></div>
-    </section>
-
-    <section class="panel viewer" id="fl-viewer">
-      <div class="results-header">
-        <h2>Views</h2>
-      </div>
-      <div class="tabs" role="tablist" aria-label="Technique" id="fl-tabs"></div>
-      <p class="guide" id="fl-guide"></p>
-      <div class="controls-row tech-controls" id="fl-tech-controls"></div>
-      <div class="chips" id="fl-chips" role="group" aria-label="View"></div>
-
-      <div class="stage" id="fl-stage" data-zoom="fit">
-        <div class="stack" id="fl-stack">
-          <img id="fl-orig" alt="Original image" hidden />
-          <img id="fl-view" alt="" />
+      <div id="progress-section" class="progress-section hidden">
+        <div class="progress-head">
+          <span id="progress-stage" class="progress-stage">Starting…</span>
+          <span class="progress-actions"><span id="progress-time" class="progress-speed"></span>
+            <button id="cancel-btn" class="btn cancel-btn small-btn" type="button">Cancel</button></span>
         </div>
+        <div class="progress-bar-track"><div id="progress-bar-fill" class="progress-bar-fill"></div></div>
+        <div class="progress-label" id="progress-label"></div>
       </div>
-      <div class="progress-label" id="fl-caption"></div>
+      <div id="exports-list" class="metadata-panel hidden"></div>
+    </section>
 
-      <div class="view-actions">
-        <button class="btn" type="button" id="fl-hold">Hold to see original</button>
-        <label class="blend">Overlay on original
-          <input type="range" id="fl-blend" min="0" max="90" step="5" value="0" />
-          <output id="fl-blend-val">0</output>%
-        </label>
-        <button class="btn" type="button" id="fl-zoom">Actual pixels</button>
-        <button class="btn" type="button" id="fl-save-view">Save this view (PNG)</button>
+    <section id="error-section" class="error-section hidden"></section>
+  </div>
+
+  <!-- ================= Authenticate ================= -->
+  <div id="view-authenticate" class="view" hidden>
+    <header class="page-head">
+      <p class="hero-eyebrow">Authenticate · editing and AI-generation checks</p>
+      <h1 class="page-title">Authenticate</h1>
+      <p class="lede">Error level analysis, clone detection, JPEG ghosts, resampling, camera-pattern and noise checks,
+        watermarks and provenance, with every view and the file's metadata side by side.</p>
+    </header>
+
+    <section class="panel drop-panel" id="fl-drop">
+      <div class="panel-title">01 · Image</div>
+      <h2>The image <span class="hint">photo or screenshot to examine</span></h2>
+      <div class="path-input-row">
+        <input type="text" id="fl-path" class="path-input" placeholder="C:\path\to\image.jpg" aria-label="Image path" spellcheck="false" />
+        <button class="btn browse-btn" type="button" data-browse="file">Browse…</button>
+        <button class="btn btn-primary run-btn" type="button" id="fl-run"><span class="btn-icon" aria-hidden="true">▶</span>Analyse</button>
       </div>
-      <details class="raw-details">
-        <summary>Measurements and settings</summary>
-        <div class="metadata-panel" id="fl-metrics"></div>
+      <div class="drop-zone">
+        <span class="drop-hint">…or drop an image here, or paste one, then press Analyse. JPEG, PNG, WebP, TIFF or BMP.</span>
+      </div>
+      <div class="file-status" id="fl-status" role="status" aria-live="polite"></div>
+      <div class="recent" id="fl-recent" hidden></div>
+      <details class="raw-details options">
+        <summary>Options</summary>
+        <div class="controls-row">
+          <label class="model-select-label">
+            ELA resave quality
+            <select id="opt-ela-quality">
+              <option value="70">70</option>
+              <option value="75">75</option>
+              <option value="80">80</option>
+              <option value="85">85</option>
+              <option value="90" selected>90 (default)</option>
+              <option value="95">95</option>
+            </select>
+          </label>
+          <label class="model-select-label">
+            Clone search size
+            <select id="opt-clone-size">
+              <option value="1024">1024 px (fastest)</option>
+              <option value="1536" selected>1536 px</option>
+              <option value="2048">2048 px (slower)</option>
+              <option value="4096">4096 px (slowest, smallest clones)</option>
+            </select>
+          </label>
+          <label class="model-select-label">
+            Clone sensitivity
+            <select id="opt-clone-sens">
+              <option value="strict">Strict</option>
+              <option value="normal" selected>Normal</option>
+              <option value="sensitive">Sensitive</option>
+            </select>
+          </label>
+        </div>
+        <h3>Techniques to run</h3>
+        <div class="checks" id="opt-techniques"></div>
       </details>
     </section>
 
-    <section class="panel metadata-section">
-      <div class="results-header">
-        <h2>Metadata</h2>
+    <section class="panel progress-section" id="fl-progress" hidden>
+      <div class="progress-bar-track">
+        <div id="fl-progress-bar" class="progress-bar-fill"></div>
       </div>
-      <div class="metadata-panel" id="fl-meta"></div>
+      <div class="progress-label" id="fl-progress-text">Starting…</div>
     </section>
 
-    <section class="panel" id="fl-report-anchor">
-      <div class="results-header">
-        <h2>Report</h2>
-        <div class="report-actions">
-          <button class="btn btn-primary report-btn" id="fl-copy" type="button">Copy to clipboard</button>
+    <div id="fl-workspace" hidden>
+      <section class="panel results-section" id="fl-results-anchor">
+        <div class="results-header">
+          <h2>Summary</h2>
+          <div class="report-actions">
+            <button id="to-enhance" class="btn" type="button" title="Open this image in the Enhance workspace"><span class="btn-svg"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="fill"/></svg></span>Enhance this image</button>
+            <button id="fl-report-html" class="btn btn-primary report-btn" type="button"><span class="btn-icon" aria-hidden="true">↓</span>Save HTML report</button>
+            <button id="fl-report-pdf" class="btn report-btn" type="button">Save PDF</button>
+            <button id="fl-report-json" class="btn report-btn" type="button">Save JSON</button>
+          </div>
+        </div>
+        <div class="score-cards" id="fl-summary"></div>
+        <div class="metadata-panel" id="fl-fileinfo"></div>
+      </section>
+
+      <section class="panel" id="fl-findings-panel">
+        <div class="results-header">
+          <h2>Findings</h2>
+        </div>
+        <div id="fl-findings"></div>
+      </section>
+
+      <section class="panel viewer" id="fl-viewer">
+        <div class="results-header">
+          <h2>Views</h2>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Technique" id="fl-tabs"></div>
+        <p class="guide" id="fl-guide"></p>
+        <div class="controls-row tech-controls" id="fl-tech-controls"></div>
+        <div class="chips" id="fl-chips" role="group" aria-label="View"></div>
+
+        <div class="stage" id="fl-stage" data-zoom="fit">
+          <div class="stack" id="fl-stack">
+            <img id="fl-orig" alt="Original image" hidden />
+            <img id="fl-view" alt="" />
+          </div>
+        </div>
+        <div class="progress-label" id="fl-caption"></div>
+
+        <div class="view-actions">
+          <button class="btn" type="button" id="fl-hold">Hold to see original</button>
+          <label class="blend">Overlay on original
+            <input type="range" id="fl-blend" min="0" max="90" step="5" value="0" />
+            <output id="fl-blend-val">0</output>%
+          </label>
+          <button class="btn" type="button" id="fl-zoom">Actual pixels</button>
+          <button class="btn" type="button" id="fl-save-view">Save this view (PNG)</button>
+        </div>
+        <details class="raw-details">
+          <summary>Measurements and settings</summary>
+          <div class="metadata-panel" id="fl-metrics"></div>
+        </details>
+      </section>
+
+      <section class="panel metadata-section" id="fl-meta-panel">
+        <div class="results-header">
+          <h2>Metadata</h2>
+        </div>
+        <div class="metadata-panel" id="fl-meta"></div>
+      </section>
+
+      <section class="panel" id="fl-report-anchor">
+        <div class="results-header">
+          <h2>Report</h2>
+          <div class="report-actions">
+            <button class="btn btn-primary report-btn" id="fl-copy" type="button">Copy to clipboard</button>
+          </div>
+        </div>
+        <textarea id="fl-report" class="report-text" rows="12" readonly></textarea>
+        <div class="file-status" id="fl-report-status" role="status"></div>
+      </section>
+    </div>
+
+    <p class="disclaimer">These checks give indicators to guide an examination, not a verdict. Every technique produces false positives, from fine texture, repeating patterns, heavy recompression and out-of-focus areas, and every technique can miss careful work. Images that have been resized, screenshotted or passed through social media keep far fewer traces. Confirm each finding by examining the image yourself, and record your method.</p>
+  </div>
+
+  <!-- ================= Filter guide ================= -->
+  <div id="view-guide" class="view" hidden>
+    <header class="page-head">
+      <p class="hero-eyebrow">Reference · the same text appears in reports</p>
+      <h1 class="page-title">Filter guide</h1>
+      <p class="lede">Every enhancement filter: what it does, when to use it, how it works, and what it can't do.</p>
+    </header>
+    <section class="panel">
+      <div class="card-title-row">
+        <div class="path-input-row guide-search-row">
+          <input type="search" id="guide-search" class="path-input" placeholder="Search: plate, backlit, CCTV, fingerprint, interlaced…" />
+        </div>
+        <div class="title-actions">
+          <button id="reference-view" class="btn small-btn" type="button">↗ Open as report</button>
+          <button id="reference-save" class="btn small-btn" type="button">Save HTML</button>
         </div>
       </div>
-      <textarea id="fl-report" class="report-text" rows="12" readonly></textarea>
-      <div class="file-status" id="fl-report-status" role="status"></div>
+      <div class="chips guide-chips" id="guide-cats"></div>
+      <div id="guide-list" class="guide-list"></div>
     </section>
   </div>
-
-  <p class="disclaimer">Forgery Lens gives indicators to guide an examination, not a verdict. Every technique produces false positives, from fine texture, repeating patterns, heavy recompression and out-of-focus areas, and every technique can miss careful work. Images that have been resized, screenshotted or passed through social media keep far fewer traces. Confirm each finding by examining the image yourself, and record your method.</p>
 </main>
 
-<footer class="site-footer">
-  <div class="wrap">
-    <span>Forgery Lens · a <a href="https://harrylsmallwood.com/tools" target="_blank" rel="noopener">Harry Smallwood tool</a></span>
-    <span class="mono">desktop · offline</span>
-  </div>
-</footer>
-
-<script src="app.js"></script>
+<script src="shell.js"></script>
+<script src="enhance/core.js"></script>
+<script src="enhance/chain.js"></script>
+<script src="enhance/viewer.js"></script>
+<script src="enhance/measure.js"></script>
+<script src="enhance/output.js"></script>
+<script src="enhance/guide.js"></script>
+<script src="authenticate.js"></script>
 </body>
 </html>

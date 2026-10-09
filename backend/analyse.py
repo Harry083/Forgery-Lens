@@ -41,7 +41,7 @@ class Analysis:
 
     def to_dict(self) -> dict:
         return {
-            "tool": "Forgery Lens", "version": self.version,
+            "tool": "Clarity", "version": self.version,
             "analysed_at": self.started.isoformat(), "seconds": round(self.seconds, 2),
             "exhibit": self.exhibit.describe(), "settings": self.settings.to_dict(),
             "counts": self.counts(), "ai_counts": self.counts(AI),

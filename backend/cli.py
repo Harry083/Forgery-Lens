@@ -107,12 +107,12 @@ def cmd_techniques(a) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="app.py", description="Image forgery and AI-generated imagery detection. Run with no command to open the desktop app.")
-    p.add_argument("--version", action="version", version=f"forgery-lens {__version__}")
+    p.add_argument("--version", action="version", version=f"clarity {__version__}")
     sub = p.add_subparsers(dest="cmd")
 
     an = sub.add_parser("analyse", aliases=["analyze"], help="analyse images and write reports")
     an.add_argument("paths", nargs="+", help="image files or folders")
-    an.add_argument("-o", "--output", default="forgery-lens-reports", help="output folder (default: %(default)s)")
+    an.add_argument("-o", "--output", default="clarity-reports", help="output folder (default: %(default)s)")
     an.add_argument("-r", "--recursive", action="store_true", help="look inside sub-folders")
     an.add_argument("--format", default="html,json", help="html, json or both (default: %(default)s)")
     an.add_argument("--no-maps", action="store_true", help="don't save full-resolution PNG maps")

@@ -103,8 +103,8 @@ def render_html(an: Analysis, extra_head: str = "", banner: str = "") -> str:
     d = ex.describe()
     orig_uri = _data_uri(ex.image)
     parts = [f"<!DOCTYPE html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
-             f"<title>Forgery Lens report — {_e(ex.name)}</title><style>{CSS}</style>{extra_head}</head><body>{banner}<div class=wrap>"]
-    parts.append(f"<header><h1>Image forensics report</h1><p class=sub>Forgery Lens v{_e(an.version)} · "
+             f"<title>Clarity authenticity report — {_e(ex.name)}</title><style>{CSS}</style>{extra_head}</head><body>{banner}<div class=wrap>"]
+    parts.append(f"<header><h1>Image forensics report</h1><p class=sub>Clarity v{_e(an.version)} · "
                  f"analysed {_e(an.started.strftime('%Y-%m-%d %H:%M:%S UTC'))} · {an.seconds:.1f} s</p></header>")
 
     # Exhibit
@@ -196,7 +196,7 @@ def render_html(an: Analysis, extra_head: str = "", banner: str = "") -> str:
         parts.append("<p class=sub>No EXIF metadata in this file.</p>")
 
     parts.append(f"<h2>Settings</h2><div class=card>{_table(an.settings.to_dict())}</div>")
-    parts.append(f"<p class=sub>Forgery Lens v{_e(an.version)}. The original file was only read, never modified.</p>")
+    parts.append(f"<p class=sub>Clarity v{_e(an.version)}. The original file was only read, never modified.</p>")
     parts.append(f"<input type=hidden id=orig value='{orig_uri}'><div id=zoom><img alt=''></div></div><script>{JS}</script></body></html>")
     return "".join(parts)
 
@@ -238,7 +238,7 @@ def render_pdf(an: Analysis, out: Path) -> None:
         raise PdfError("Saving as PDF needs Microsoft Edge or Google Chrome installed. "
                        "Save the HTML report instead and print it to PDF from your browser.")
     page = render_print_html(an)
-    with tempfile.TemporaryDirectory(prefix="forgery-lens-pdf-", ignore_cleanup_errors=True) as tmp:
+    with tempfile.TemporaryDirectory(prefix="clarity-pdf-", ignore_cleanup_errors=True) as tmp:
         src, pdf = Path(tmp, "report.html"), Path(tmp, "report.pdf")
         src.write_text(page, encoding="utf-8")
         detail = ""
