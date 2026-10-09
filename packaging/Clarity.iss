@@ -10,7 +10,9 @@
 
 #define AppName "Clarity"
 #ifndef AppVersion
-  #define AppVersion "0.0.0"
+  ; used when the script is compiled from the Inno Setup window; keep in step with backend/__init__.py
+  ; (build-windows.ps1 passes the version from there with /DAppVersion)
+  #define AppVersion "3.0.0"
 #endif
 #define AppExe "Clarity.exe"
 #define ProgId "Clarity.Evidence"
