@@ -3,7 +3,8 @@ Type=Application
 Name=Clarity
 Comment=Forensic image and video enhancement, and checks for editing and AI generation
 # Edit the paths to where you unpacked the build.
-Exec=/opt/Clarity/Clarity
+Exec=/opt/Clarity/Clarity %F
 Icon=/opt/Clarity/clarity.png
 Terminal=false
 Categories=Graphics;Utility;
+MimeType=image/jpeg;image/png;image/tiff;image/bmp;image/webp;video/mp4;video/x-msvideo;video/quicktime;video/x-matroska;

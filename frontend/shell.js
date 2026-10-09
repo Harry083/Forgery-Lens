@@ -144,6 +144,16 @@
     toEnhance: function (path) { go("enhance"); CL.openSource([path]); }
   };
 
+  // Files passed in by Windows ("Open with Clarity", or a double-click once it's the default app) open in Enhance.
+  function openStartupFiles() {
+    window.pywebview.api.startup_files().then(function (res) {
+      var paths = res && res.ok ? res.data.paths : [];
+      if (paths.length && typeof CL !== "undefined") { go("enhance"); CL.openSource(paths); }
+    });
+  }
+  if (window.pywebview && window.pywebview.api) setTimeout(openStartupFiles, 0);
+  else window.addEventListener("pywebviewready", openStartupFiles, { once: true });
+
   var saved = "home";
   try { saved = localStorage.getItem("cl-view") || "home"; } catch (e) { /* ignore */ }
   // a workspace with nothing open would just be an empty form after a restart, so start at Home then

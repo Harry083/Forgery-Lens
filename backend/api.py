@@ -291,6 +291,7 @@ class Api:
         self._jobs = Jobs(self._folder)
         self._window = None
         self._enhance = EnhanceApi()
+        self._startup: list[str] = []  # files passed on the command line ("Open with Clarity" in Explorer)
 
     def _attach(self, window) -> None:
         self._window = window
@@ -327,6 +328,12 @@ class Api:
         return str(job.exhibit.path.parent) if job.exhibit.path else ""
 
     # ---------- start-up ----------
+    @_result
+    def startup_files(self):
+        """Files the app was launched with (once: a page reload doesn't reopen them)."""
+        files, self._startup = self._startup, []
+        return {"paths": files}
+
     @_result
     def config(self):
         return {"version": __version__,

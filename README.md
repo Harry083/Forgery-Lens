@@ -42,25 +42,76 @@ On macOS/Linux use `.venv/bin/python` in place of `.venv\Scripts\python.exe`.
 
 Pass `--debug` to enable the web inspector.
 
-## Build a standalone app
+## Install on Windows
 
-```bash
-python -m pip install pyinstaller
-python -m PyInstaller --clean Clarity.spec
+Download `Clarity-<version>-Setup.exe` (from the repository's **Actions** tab, the latest *Windows installer*
+run, under **Artifacts**, or from a release) and run it:
+
+- It installs for you alone by default, into `%LOCALAPPDATA%\Programs\Clarity`, with no administrator prompt.
+  The first page offers *install for all users* instead.
+- Clarity appears in the **Start menu**, with an optional desktop shortcut.
+- It appears in **Settings → Apps**, where it can be uninstalled.
+- Images and videos get **Open with → Clarity** in Explorer. Clarity never makes itself the default app;
+  choose that in Windows if you want double-click to open it.
+- If the Microsoft Edge WebView2 Runtime is missing (it ships with Windows 11 and up-to-date Windows 10), the
+  installer offers Microsoft's download page.
+- Upgrading is just installing a newer version over the top.
+
+### Windows Defender and SmartScreen
+
+The installer is built to avoid the usual false positives of Python apps:
+
+- **No self-extracting exe.** Clarity is a normal one-folder app. The old single `.exe` unpacked a Python
+  runtime to a temp folder on every launch, which is the behaviour antivirus heuristics distrust.
+- **A launcher built from source.** PyInstaller's launcher is compiled from source on the build machine
+  (`-RebuildBootloader`), so it doesn't match the stock launcher that some malware reuses.
+- **No UPX compression.**
+- **Full version information** (publisher, product, version) on `Clarity.exe` and the installer.
+
+No unsigned program can be guaranteed a clean first run, though. Windows **SmartScreen** shows *"Windows
+protected your PC"* for any download without a code-signing reputation; users can choose *More info → Run
+anyway*. To remove that warning:
+
+1. **Sign the builds.** Use an Authenticode certificate, or Microsoft's
+   [Artifact Signing](https://learn.microsoft.com/azure/trusted-signing/) (formerly Trusted Signing), a low-cost
+   monthly service. Add the certificate as repository secrets `CLARITY_SIGN_PFX_BASE64` (the `.pfx`,
+   base64-encoded) and `CLARITY_SIGN_PASSWORD`, and every build signs `Clarity.exe`, the installer and the
+   uninstaller. Locally, set `CLARITY_SIGN_THUMBPRINT` (a certificate in your store) or `CLARITY_SIGN_PFX` +
+   `CLARITY_SIGN_PASSWORD` before building.
+2. **If Defender itself ever flags a build**, submit the installer as a false positive at
+   <https://www.microsoft.com/wdsi/filesubmission> (choose *Software developer*). Microsoft usually clears it
+   within a day or two, for that build and similar later ones.
+
+## Build the installer
+
+Every push to GitHub builds it automatically: see **Actions → Windows installer**. Each run installs the
+result, checks that the installed app starts and passes its self-test, uninstalls it, and keeps
+`Clarity-<version>-Setup.exe` as a downloadable artifact. Pushing a tag such as `v3.0.0` also attaches it to a
+GitHub release.
+
+To build on your own Windows PC (Python 3.10+; Inno Setup 6 is installed automatically if missing):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\build-windows.ps1 -RebuildBootloader
 ```
 
-This builds a single file, `dist/Clarity.exe` (`dist/Clarity` on Linux/macOS), with the Clarity icon. It runs on
-another machine without Python installed. Each launch unpacks the app to a temp folder first, so it takes a few
-seconds to open.
+`-RebuildBootloader` needs the Visual Studio C++ build tools. Leave it off to use PyInstaller's stock launcher,
+which is more likely to be flagged. The steps are in `packaging/build-windows.ps1`:
 
-- **Windows:** run `Clarity.exe`. Pin it to the Start menu or taskbar like any other program.
-- **macOS:** run `dist/Clarity`.
-- **Linux:** copy `dist/Clarity` and `clarity.png` to `/opt/Clarity/`, then install `clarity.desktop` into
-  `~/.local/share/applications/`.
+1. a clean virtual environment;
+2. the tests;
+3. PyInstaller (`Clarity.spec`, a one-folder build into `dist\Clarity\`);
+4. `Clarity.exe --self-test`;
+5. optional signing;
+6. Inno Setup (`packaging\Clarity.iss`), producing `dist\installer\Clarity-<version>-Setup.exe` with a
+   `SHA256SUMS.txt` next to it.
 
-The icon lives in `clarity.ico` (every Windows size, 16–256 px) and `clarity.png` (1024 px). To use a different
-one, replace those two files and rebuild. PyInstaller builds for the OS it runs on, so build the Windows `.exe` on
-Windows.
+The version comes from `backend/__init__.py`. The icon lives in `clarity.ico` (every Windows size, 16–256 px)
+and `clarity.png` (1024 px).
+
+**macOS and Linux:** `python -m PyInstaller --clean --noconfirm Clarity.spec` builds `dist/Clarity/`. On Linux,
+copy that folder to `/opt/Clarity/`, copy `clarity.png` into it, and install `clarity.desktop` into
+`~/.local/share/applications/`.
 
 ## Finding your way around
 
@@ -262,7 +313,9 @@ clarity/ (this repository)
 ├── tests/                pytest suite (both workspaces and the app API) and dev_server.py
 ├── docs/                 screenshots
 ├── app.py                entry point: opens the native window (no server, no port), or the CLI with a command
-├── Clarity.spec          PyInstaller one-file build
+├── Clarity.spec          PyInstaller one-folder build
+├── packaging/            Windows installer: Clarity.iss (Inno Setup) and build-windows.ps1
+├── .github/workflows/    builds, installs and tests the Windows installer on every push
 ├── clarity.ico/.png      the app icon
 ├── clarity.desktop       Linux menu launcher
 └── requirements.txt

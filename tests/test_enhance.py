@@ -507,3 +507,14 @@ def test_main_api_exposes_enhance_methods(video: Path, tmp_path: Path) -> None:
     assert api.en_open_source(str(video))["data"]["count"] == 20
     assert api.en_preview({"chain": [{"id": "invert"}], "index": 3})["data"]["width"] == 320
     api._close()
+
+
+def test_files_passed_at_launch_are_handed_to_the_page_once(tmp_path: Path) -> None:
+    """Explorer's "Open with Clarity" starts the app with the file path; the page asks for it once."""
+    from backend.api import Api
+
+    api = Api(tmp_path / "views")
+    api._startup = [str(tmp_path / "plate.jpg")]
+    assert api.startup_files()["data"]["paths"] == [str(tmp_path / "plate.jpg")]
+    assert api.startup_files()["data"]["paths"] == []  # a page reload doesn't reopen it
+    api._close()

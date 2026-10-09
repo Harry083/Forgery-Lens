@@ -1,0 +1,78 @@
+# Builds the Clarity Windows installer on a Windows machine, checks it installs, runs and uninstalls, and keeps
+# it as a downloadable artifact (Actions > this run > Artifacts). A tag like v3.0.0 also attaches it to a
+# GitHub release.
+#
+# Code signing is optional: add repository secrets CLARITY_SIGN_PFX_BASE64 (the .pfx file, base64-encoded) and
+# CLARITY_SIGN_PASSWORD, and the app and installer are signed. See README > Install on Windows.
+name: Windows installer
+
+on:
+  push:
+    branches: [main, "harry/**"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # only used to attach the installer to a release when a v* tag is pushed
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the installer
+        shell: pwsh
+        env:
+          CLARITY_SIGN_PFX_BASE64: ${{ secrets.CLARITY_SIGN_PFX_BASE64 }}
+          CLARITY_SIGN_PASSWORD: ${{ secrets.CLARITY_SIGN_PASSWORD }}
+        run: ./packaging/build-windows.ps1 -RebuildBootloader
+
+      - name: Install, run and uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $setup = Get-ChildItem dist\installer\Clarity-*-Setup.exe | Select-Object -First 1
+          $log = Join-Path $env:RUNNER_TEMP "install.log"
+          $p = Start-Process $setup.FullName -ArgumentList "/VERYSILENT", "/CURRENTUSER", "/SUPPRESSMSGBOXES", "/NORESTART", "/LOG=`"$log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log; throw "Installer exit code $($p.ExitCode)" }
+          $exe = Join-Path $env:LOCALAPPDATA "Programs\Clarity\Clarity.exe"
+          if (-not (Test-Path $exe)) { Get-Content $log; throw "Clarity.exe wasn't installed to $exe" }
+          $menu = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Clarity.lnk"
+          if (-not (Test-Path $menu)) { throw "No Start menu shortcut at $menu" }
+          if (-not (Test-Path "HKCU:\Software\Classes\.jpg\OpenWithProgids")) { throw "Open with wasn't registered" }
+
+          $report = Join-Path $env:RUNNER_TEMP "installed-self-test.json"
+          $run = Start-Process $exe -ArgumentList "--self-test", "`"$report`"" -Wait -PassThru
+          Get-Content $report
+          if ($run.ExitCode -ne 0) { throw "The installed app failed its self-test" }
+
+          $uninstaller = Join-Path $env:LOCALAPPDATA "Programs\Clarity\unins000.exe"
+          $u = Start-Process $uninstaller -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART" -Wait -PassThru
+          Start-Sleep -Seconds 3
+          if ($u.ExitCode -ne 0 -or (Test-Path $exe)) { throw "Uninstall didn't remove Clarity" }
+          if ((Get-ItemProperty "HKCU:\Software\Classes\.jpg\OpenWithProgids" -ErrorAction SilentlyContinue)."Clarity.Evidence" -ne $null) {
+            throw "Uninstall left the Open with entry behind"
+          }
+          Write-Host "Installed, ran and uninstalled cleanly."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Clarity-Windows-installer
+          path: |
+            dist/installer/*.exe
+            dist/installer/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/installer/*.exe
+            dist/installer/SHA256SUMS.txt
